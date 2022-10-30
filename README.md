@@ -56,23 +56,23 @@ $message = 'Hello world from {0}'
 ```powershell
 $sync = [hashtable]::Synchronized(@{})
 
-0..10 | Invoke-Parallel {
+Get-Process | Invoke-Parallel {
     $sync = $using:sync
-    $sync.Add($_, 'hello')
-} -ThrottleLimit 5
+    $sync[$_.Name] += @( $_ )
+}
 
 $sync
 ```
 
-### EXAMPLE 4: Same as previous, but using `-ArgumentList` to pass the reference instance to the Runspaces
+### EXAMPLE 4: Same as previous example but using `-ArgumentList` to pass the reference instance to the Runspaces
 
 This method is the recommended when passing reference instances to the runspaces, `$using:` may fail in some situations.
 
 ```powershell
 $sync = [hashtable]::Synchronized(@{})
 
-0..10 | Invoke-Parallel {
-    $sync.Add($_, 'hello')
+Get-Process | Invoke-Parallel {
+    $sync[$_.Name] += @( $_ )
 } -ArgumentList @{ sync = $sync }
 
 $sync

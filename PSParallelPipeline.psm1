@@ -69,7 +69,7 @@ function Invoke-Parallel {
     Get-Process | Invoke-Parallel {
         $sync = $using:sync
         $sync[$_.Name] += @( $_ )
-    } -ThrottleLimit 5
+    }
 
     $sync
 
@@ -79,9 +79,8 @@ function Invoke-Parallel {
     $sync = [hashtable]::Synchronized(@{})
 
     Get-Process | Invoke-Parallel {
-        $sync = $using:sync
         $sync[$_.Name] += @( $_ )
-    } -ThrottleLimit 5
+    } -ArgumentList @{ sync = $sync }
 
     $sync
 
