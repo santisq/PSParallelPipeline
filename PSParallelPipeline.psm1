@@ -10,10 +10,9 @@ function Invoke-Parallel {
     Enables parallel processing of pipeline input objects.
 
     .DESCRIPTION
-    PowerShell function that intends to emulate `ForEach-Object -Parallel` functionality in PowerShell Core for those stuck with Windows PowerShell.
+    PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell.
     This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
-    This was inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob)
-    and is merely a simplified take on those.
+    This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob) and is merely a simplified take on those with some few improvements.
 
     TO DO:
         - Add `-TimeoutSeconds` parameter.
@@ -31,17 +30,19 @@ function Invoke-Parallel {
     Input objects are blocked until the running script block count falls below the ThrottleLimit.
     The default value is `5`.
 
-    .PARAMETER ArgumentList
-    Specifies a hashtable of values to be passed to the Runspaces.
-    Hashtable Keys become the Variable Name inside the ScriptBlock.
+    .PARAMETER Variables
+    Specifies a hash table of variables to have available in the Script Block (Runspaces).
+    The hash table `Keys` become the Variable Name inside the Script Block.
+
+    .PARAMETER Functions
+    Existing functions in the Local Session to have available in the Script Block (Runspaces).
 
     .PARAMETER ThreadOptions
     These options control whether a new thread is created when a command is executed within a Runspace.
-    See [`PSThreadOptions` Enum](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.psthreadoptions?view=powershellsdk-7.2.0).
+    This parameter is limited to `ReuseThread` and `UseNewThread`.
     Default value is `ReuseThread`.
+    See [`PSThreadOptions` Enum](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.psthreadoptions?view=powershellsdk-7.2.0) for details.
 
-    .PARAMETER Functions
-    Existing functions in the current scope that we want to have available in the Runspaces.
 
     .EXAMPLE
     $message = 'Hello world from {0}'
@@ -59,9 +60,9 @@ function Invoke-Parallel {
     0..10 | Invoke-Parallel {
         $message -f [runspace]::DefaultRunspace.InstanceId
         Start-Sleep 3
-    } -ArgumentList @{ message = $message } -ThrottleLimit 3
+    } -Variables @{ message = $message } -ThrottleLimit 3
 
-    Same as Example 1 but with `-ArgumentList` parameter.
+    Same as Example 1 but with `-Variables` parameter.
 
     .EXAMPLE
     $sync = [hashtable]::Synchronized(@{})
@@ -80,11 +81,11 @@ function Invoke-Parallel {
 
     Get-Process | Invoke-Parallel {
         $sync[$_.Name] += @( $_ )
-    } -ArgumentList @{ sync = $sync }
+    } -Variables @{ sync = $sync }
 
     $sync
 
-    Same as Example 3, but using `-ArgumentList` to pass the reference instance to the runspaces.
+    Same as Example 3, but using `-Variables` to pass the reference instance to the runspaces.
     This method is the recommended when passing reference instances to the runspaces, `$using:` may fail in some situations.
 
     .EXAMPLE
@@ -101,7 +102,7 @@ function Invoke-Parallel {
     #>
 
     [CmdletBinding(PositionalBinding = $false)]
-    [Alias('parallel')]
+    [Alias('parallel', 'parallelpipeline')]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [object] $InputObject,
@@ -113,10 +114,7 @@ function Invoke-Parallel {
         [int] $ThrottleLimit = 5,
 
         [Parameter()]
-        [hashtable] $ArgumentList,
-
-        [Parameter()]
-        [PSThreadOptions] $ThreadOptions = [PSThreadOptions]::ReuseThread,
+        [hashtable] $Variables,
 
         [Parameter()]
         [ArgumentCompleter({
@@ -128,15 +126,19 @@ function Invoke-Parallel {
 
             (Get-Command -CommandType Filter, Function).Name -like "$wordToComplete*"
         })]
-        [string[]] $Functions
+        [string[]] $Functions,
+
+        [Parameter()]
+        [ValidateSet('ReuseThread', 'UseNewThread')]
+        [PSThreadOptions] $ThreadOptions = [PSThreadOptions]::ReuseThread
     )
 
     begin {
         try {
             $iss = [initialsessionstate]::CreateDefault2()
 
-            foreach($key in $ArgumentList.PSBase.Keys) {
-                $iss.Variables.Add([SessionStateVariableEntry]::new($key, $ArgumentList[$key], ''))
+            foreach($key in $Variables.PSBase.Keys) {
+                $iss.Variables.Add([SessionStateVariableEntry]::new($key, $Variables[$key], ''))
             }
 
             foreach($function in $Functions) {
@@ -150,9 +152,11 @@ function Invoke-Parallel {
                 $varText = $usingstatement.Extent.Text
                 $varPath = $usingstatement.SubExpression.VariablePath.UserPath
 
-                if(-not $usingParams.ContainsKey($varText)) {
-                    $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText))
-                    $usingParams[$key] = $ExecutionContext.SessionState.PSVariable.Get($varPath).Value
+                # Credits to mklement0 for catching up a bug here. Thank you!
+                # https://github.com/mklement0
+                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText))
+                if(-not $usingParams.ContainsKey($key)) {
+                    $usingParams.Add($key, $ExecutionContext.SessionState.PSVariable.Get($varPath).Value)
                 }
             }
 
