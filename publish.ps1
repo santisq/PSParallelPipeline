@@ -1,0 +1,1 @@
+﻿Publish-Module -Path $PSScriptRoot -NuGetApiKey $env:PSGALLERY_TOKEN

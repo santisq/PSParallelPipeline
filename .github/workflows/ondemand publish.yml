@@ -16,7 +16,6 @@ jobs:
 
     - name: Publish to Gallery
       shell: pwsh
-      run: >-
-        Publish-Module -Path $PSScriptRoot -NuGetApiKey $env:PSGALLERY_TOKEN
+      run: .\publish.ps1
       env:
         PSGALLERY_TOKEN: ${{ secrets.PSGALLERY_TOKEN }}
