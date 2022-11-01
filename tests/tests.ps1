@@ -12,7 +12,7 @@ $message = 'Hello world from {0}'
 0..10 | Invoke-Parallel {
     $message -f [runspace]::DefaultRunspace.InstanceId
     Start-Sleep 3
-} -ArgumentList @{ message = $message } -ThrottleLimit 3
+} -Variables @{ message = $message } -ThrottleLimit 3
 
 # Example 3
 $sync = [hashtable]::Synchronized(@{})
@@ -29,7 +29,7 @@ $sync = [hashtable]::Synchronized(@{})
 
 Get-Process | Invoke-Parallel {
     $sync[$_.Name] += @( $_ )
-} -ArgumentList @{ sync = $sync }
+} -Variables @{ sync = $sync }
 
 $sync
 
