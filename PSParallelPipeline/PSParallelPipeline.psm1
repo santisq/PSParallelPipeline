@@ -152,11 +152,9 @@ function Invoke-Parallel {
                 $varText = $usingstatement.Extent.Text
                 $varPath = $usingstatement.SubExpression.VariablePath.UserPath
 
-                # Credits to mklement0 for catching up a bug here. Thank you!
-                # https://github.com/mklement0
-                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText))
+                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLower()))
                 if(-not $usingParams.ContainsKey($key)) {
-                    $usingParams.Add($key, $ExecutionContext.SessionState.PSVariable.Get($varPath).Value)
+                    $usingParams.Add($key, $ExecutionContext.SessionState.PSVariable.GetValue($varPath))
                 }
             }
 
@@ -177,7 +175,8 @@ function Invoke-Parallel {
                 $args[0].InvokeWithContext($null, [psvariable]::new('_', $args[1]))
             }).AddArgument($ScriptBlock.Ast.GetScriptBlock()).AddArgument($InputObject)
 
-            # This is how `Start-Job` does it's magic. Credits to Jordan Borean for his help here.
+            # This is how `Start-Job` does it's magic.
+            # Credits to Jordan Borean for his help here.
             # https://github.com/jborean93
 
             # Reference in the source code:
