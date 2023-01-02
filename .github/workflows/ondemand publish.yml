@@ -16,6 +16,6 @@ jobs:
 
     - name: Publish to Gallery
       shell: pwsh
-      run: .\publish.ps1
+      run: .\publish.ps1 PSParallelPipeline
       env:
         PSGALLERY_TOKEN: ${{ secrets.PSGALLERY_TOKEN }}
