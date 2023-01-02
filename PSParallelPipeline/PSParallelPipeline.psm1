@@ -156,7 +156,10 @@ function Invoke-Parallel {
 
                 $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLower()))
                 if(-not $usingParams.ContainsKey($key)) {
-                    $usingParams.Add($key, $ExecutionContext.SessionState.PSVariable.GetValue($varPath))
+                    # Huge thanks to SeeminglyScience again and again! The function must use
+                    # `$PSCmdlet.SessionState` instead of `$ExecutionContext.SessionState`
+                    # to properly refer to the caller's scope.
+                    $usingParams.Add($key, $PSCmdlet.SessionState.PSVariable.GetValue($varPath))
                 }
             }
 
