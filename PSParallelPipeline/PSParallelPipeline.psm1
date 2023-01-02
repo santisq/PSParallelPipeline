@@ -148,6 +148,8 @@ function Invoke-Parallel {
 
             $usingParams = @{}
 
+            # Credits to mklement0 for catching up a bug here. Thank you!
+            # https://github.com/mklement0
             foreach($usingstatement in $ScriptBlock.Ast.FindAll({ $args[0] -is [UsingExpressionAst] }, $true)) {
                 $varText = $usingstatement.Extent.Text
                 $varPath = $usingstatement.SubExpression.VariablePath.UserPath
