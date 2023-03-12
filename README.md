@@ -41,7 +41,7 @@ $message = 'Hello world from {0}'
 } -ThrottleLimit 3
 ```
 
-### Example 2: Same as previous Example but with `-Variables` parameter
+### Example 2: Demonstrates how `-Variables` parameter works
 
 ```powershell
 $message = 'Hello world from {0}'
@@ -65,7 +65,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### Example 4: Same as previous Example but using `-Variables` to pass the reference instance to the Runspaces
+### Example 4: Same as previous example using `-Variables` parameter
 
 ```powershell
 $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
@@ -77,7 +77,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### Example 5: Demonstrates how to pass a locally defined Function to the Runspace scope
+### Example 5: Demonstrates how to pass a locally defined Function to the parallel scope
 
 ```powershell
 function Greet { param($s) "$s hey there!" }
@@ -89,7 +89,7 @@ function Greet { param($s) "$s hey there!" }
 
 ### -InputObject
 
-Specifies the input objects to be processed in the ScriptBlock.
+Specifies the input objects to be processed in the Script Block.
 
 __Note: This parameter is intended to be bound from pipeline.__
 
@@ -212,6 +212,6 @@ Accept wildcard characters: False
 
 This cmdlet supports the common parameters. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
-## Contributing
+## CONTRIBUTING
 
 Contributions are more than welcome, if you wish to contribute, fork this repository and submit a pull request with the changes.
