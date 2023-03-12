@@ -327,7 +327,7 @@ function Invoke-Parallel {
                 $varText = $usingstatement.Extent.Text
                 $varPath = $usingstatement.SubExpression.VariablePath.UserPath
 
-                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLower()))
+                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLowerInvariant()))
                 if(-not $usingParams.ContainsKey($key)) {
                     $usingParams.Add($key, $PSCmdlet.SessionState.PSVariable.GetValue($varPath))
                 }
