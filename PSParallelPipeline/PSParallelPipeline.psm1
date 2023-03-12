@@ -1,21 +1,190 @@
-﻿using namespace System.Collections.Generic
+﻿using namespace System.Text
+using namespace System.Threading
+using namespace System.Diagnostics
+using namespace System.Collections.Generic
 using namespace System.Management.Automation
-using namespace System.Management.Automation.Runspaces
+using namespace System.Management.Automation.Host
 using namespace System.Management.Automation.Language
-using namespace System.Text
+using namespace System.Management.Automation.Runspaces
 
-function Invoke-Parallel {
-    <#
+class PSParallelTask : IDisposable {
+    [powershell] $Instance
+    [IAsyncResult] $AsyncResult
+    [PSCmdlet] $Cmdlet
+
+    PSParallelTask([scriptblock] $Action, [object] $PipelineObject, [PSCmdlet] $Cmdlet) {
+        # Thanks to Patrick Meinecke for his help here.
+        # https://github.com/SeeminglyScience/
+        $this.Cmdlet   = $Cmdlet
+        $this.Instance = [powershell]::Create().AddScript({
+            param([scriptblock] $Action, [object] $Context)
+
+            $Action.InvokeWithContext($null, [psvariable]::new('_', $Context))
+        }).AddParameters(@{
+            Action  = $Action.Ast.GetScriptBlock()
+            Context = $PipelineObject
+        })
+    }
+
+    [PSParallelTask] AddUsingStatements([hashtable] $UsingStatements) {
+        if($UsingStatements.Count) {
+            # Credits to Jordan Borean for his help here.
+            # https://github.com/jborean93
+            $this.Instance.AddParameters(@{ '--%' = $UsingStatements })
+        }
+        return $this
+    }
+
+    [void] Run() {
+        $this.AsyncResult = $this.Instance.BeginInvoke()
+    }
+
+    [void] EndInvoke() {
+        try {
+            $this.Cmdlet.WriteObject($this.Instance.EndInvoke($this.AsyncResult), $true)
+            $this.GetErrors()
+        }
+        catch {
+            $this.Cmdlet.WriteError($_)
+        }
+    }
+
+    [void] Stop() {
+        $this.Instance.Stop()
+    }
+
+    [void] GetErrors() {
+        if($this.Instance.HadErrors) {
+            foreach($err in $this.Instance.Streams.Error) {
+                $this.Cmdlet.WriteError($err)
+            }
+        }
+    }
+
+    [PSParallelTask] AssociateWith([runspace] $Runspace) {
+        $this.Instance.Runspace = $Runspace
+        return $this
+    }
+
+    [runspace] GetRunspace() {
+        return $this.Instance.Runspace
+    }
+
+    [void] Dispose() {
+        $this.Instance.Dispose()
+    }
+}
+
+class InvocationManager : IDisposable {
+    [int] $ThrottleLimit
+    [PSHost] $PSHost
+    [initialsessionstate] $InitialSessionState
+    [Stack[runspace]] $Runspaces = [Stack[runspace]]::new()
+    [List[PSParallelTask]] $Tasks = [List[PSParallelTask]]::new()
+    [bool] $UseNewRunspace
+    hidden [int] $TotalMade
+
+    InvocationManager(
+        [int] $ThrottleLimit,
+        [PSHost] $PSHost,
+        [initialsessionstate] $InitialSessionState,
+        [bool] $UseNewRunspace
+    ) {
+        $this.ThrottleLimit       = $ThrottleLimit
+        $this.PSHost              = $PSHost
+        $this.InitialSessionState = $InitialSessionState
+        $this.UseNewRunspace      = $UseNewRunspace
+    }
+
+    [runspace] TryGet() {
+        if($this.Runspaces.Count) {
+            return $this.Runspaces.Pop()
+        }
+
+        if($this.TotalMade -ge $this.ThrottleLimit) {
+            return $null
+        }
+
+        $this.TotalMade++
+        return $this.CreateRunspace()
+    }
+
+    [runspace] CreateRunspace() {
+        $runspace = [runspacefactory]::CreateRunspace($this.PSHost, $this.InitialSessionState)
+        $runspace.Open()
+        return $runspace
+    }
+
+    [PSParallelTask] WaitAny() {
+        if(-not $this.Tasks.Count) {
+            return $null
+        }
+
+        do {
+            $id = [WaitHandle]::WaitAny($this.Tasks.AsyncResult.AsyncWaitHandle, 200)
+        }
+        while($id -eq [WaitHandle]::WaitTimeout)
+
+        return $this.Tasks[$id]
+    }
+
+    [PSParallelTask] WaitAny([int] $TimeoutSeconds, [Stopwatch] $Timer) {
+        if(-not $this.Tasks.Count) {
+            return $null
+        }
+
+        do {
+            if($TimeoutSeconds -lt $Timer.Elapsed.TotalSeconds) {
+                $this.Tasks[0].Stop()
+                return $this.Tasks[0]
+            }
+
+            $id = [WaitHandle]::WaitAny($this.Tasks.AsyncResult.AsyncWaitHandle, 200)
+        }
+        while($id -eq [WaitHandle]::WaitTimeout)
+
+        return $this.Tasks[$id]
+    }
+
+    [void] GetTaskResult([PSParallelTask] $Task) {
+        $this.Tasks.Remove($Task)
+        $this.Release($Task.GetRunspace())
+        $Task.EndInvoke()
+
+        if($Task -is [IDisposable]) {
+            $Task.Dispose()
+        }
+    }
+
+    [void] Release([runspace] $runspace) {
+        if($this.UseNewRunspace) {
+            $runspace.Dispose()
+            $runspace = $this.CreateRunspace()
+        }
+
+        $this.Runspaces.Push($runspace)
+    }
+
+    [void] AddTask([PSParallelTask] $Task) {
+        $this.Tasks.Add($Task)
+        $Task.Run()
+    }
+
+    [void] Dispose() {
+        while($runspace = $this.TryGet()) {
+            $runspace.Dispose()
+        }
+    }
+}
+
+<#
     .SYNOPSIS
     Enables parallel processing of pipeline input objects.
 
     .DESCRIPTION
-    PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell.
+    PowerShell function that intends to emulate `ForEach-Object -Parallel` for those stuck with Windows PowerShell.
     This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
-    This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob) and is merely a simplified take on those with some few improvements.
-
-    TO DO:
-        - Add `-TimeoutSeconds` parameter.
+    This project is greatly inspired by RamblingCookieMonster's `Invoke-Parallel` and Boe Prox's `PoshRSJob`.
 
     .PARAMETER InputObject
     Specifies the input objects to be processed in the ScriptBlock.
@@ -37,12 +206,12 @@ function Invoke-Parallel {
     .PARAMETER Functions
     Existing functions in the Local Session to have available in the Script Block (Runspaces).
 
-    .PARAMETER ThreadOptions
-    These options control whether a new thread is created when a command is executed within a Runspace.
-    This parameter is limited to `ReuseThread` and `UseNewThread`.
-    Default value is `ReuseThread`.
-    See [`PSThreadOptions` Enum](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.psthreadoptions?view=powershellsdk-7.2.0) for details.
+    .PARAMETER TimeoutSeconds
+    Specifies the number of seconds to wait for all input to be processed in parallel.
+    After the specified timeout time, all running scripts are stopped and any remaining input objects to be processed are ignored.
 
+    .PARAMETER UseNewRunspace
+    Uses a new runspace for each parallel invocation instead of reusing them.
 
     .EXAMPLE
     $message = 'Hello world from {0}'
@@ -65,44 +234,42 @@ function Invoke-Parallel {
     Same as Example 1 but with `-Variables` parameter.
 
     .EXAMPLE
-    $sync = [hashtable]::Synchronized(@{})
+    $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
 
     Get-Process | Invoke-Parallel {
-        $sync = $using:sync
-        $sync[$_.Name] += @( $_ )
+        $dict = $using:threadSafeDictionary
+        $dict.TryAdd($_.ProcessName, $_)
     }
 
-    $sync
+    $threadSafeDictionary["pwsh"]
 
     Adding to a single thread safe instance.
 
     .EXAMPLE
-    $sync = [hashtable]::Synchronized(@{})
+    $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
 
     Get-Process | Invoke-Parallel {
-        $sync[$_.Name] += @( $_ )
-    } -Variables @{ sync = $sync }
+        $dict.TryAdd($_.ProcessName, $_)
+    } -Variables @{ dict = $threadSafeDictionary }
 
-    $sync
+    $threadSafeDictionary["pwsh"]
 
     Same as Example 3, but using `-Variables` to pass the reference instance to the runspaces.
-    This method is the recommended when passing reference instances to the runspaces, `$using:` may fail in some situations.
 
     .EXAMPLE
     function Greet { param($s) "$s hey there!" }
 
-    0..10 | Invoke-Parallel {
-        Greet $_
-    } -Functions Greet
+    0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
 
     This example demonstrates how to pass a locally defined Function to the Runspaces scope.
 
     .LINK
     https://github.com/santisq/PSParallelPipeline
-    #>
+#>
 
+function Invoke-Parallel {
     [CmdletBinding(PositionalBinding = $false)]
-    [Alias('parallel', 'parallelpipeline')]
+    [Alias('parallel')]
     param(
         [Parameter(Mandatory, ValueFromPipeline)]
         [object] $InputObject,
@@ -111,12 +278,15 @@ function Invoke-Parallel {
         [scriptblock] $ScriptBlock,
 
         [Parameter()]
+        [ValidateRange(1, [int]::MaxValue)]
         [int] $ThrottleLimit = 5,
 
         [Parameter()]
+        [ValidateNotNullOrEmpty()]
         [hashtable] $Variables,
 
         [Parameter()]
+        [ValidateNotNullOrEmpty()]
         [ArgumentCompleter({
             param(
                 [string] $commandName,
@@ -129,8 +299,11 @@ function Invoke-Parallel {
         [string[]] $Functions,
 
         [Parameter()]
-        [ValidateSet('ReuseThread', 'UseNewThread')]
-        [PSThreadOptions] $ThreadOptions = [PSThreadOptions]::ReuseThread
+        [switch] $UseNewRunspace,
+
+        [Parameter()]
+        [ValidateRange(1, [int]::MaxValue)]
+        [int] $TimeoutSeconds
     )
 
     begin {
@@ -148,7 +321,7 @@ function Invoke-Parallel {
 
             $usingParams = @{}
 
-            # Credits to mklement0 for catching up a bug here. Thank you!
+            # Thanks to mklement0 for catching up a bug here.
             # https://github.com/mklement0
             foreach($usingstatement in $ScriptBlock.Ast.FindAll({ $args[0] -is [UsingExpressionAst] }, $true)) {
                 $varText = $usingstatement.Extent.Text
@@ -156,66 +329,75 @@ function Invoke-Parallel {
 
                 $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLower()))
                 if(-not $usingParams.ContainsKey($key)) {
-                    # Huge thanks to SeeminglyScience again and again! The function must use
-                    # `$PSCmdlet.SessionState` instead of `$ExecutionContext.SessionState`
-                    # to properly refer to the caller's scope.
                     $usingParams.Add($key, $PSCmdlet.SessionState.PSVariable.GetValue($varPath))
                 }
             }
 
-            $pool  = [runspacefactory]::CreateRunspacePool(1, $ThrottleLimit, $iss, $Host)
-            $tasks = [List[hashtable]]::new()
-            $pool.ThreadOptions = $ThreadOptions
-            $pool.Open()
+            $im = [InvocationManager]::new($ThrottleLimit, $Host, $iss, $UseNewRunspace.IsPresent)
+
+            if($withTimeout = $PSBoundParameters.ContainsKey('TimeoutSeconds')) {
+                $timer = [Stopwatch]::StartNew()
+            }
         }
         catch {
             $PSCmdlet.ThrowTerminatingError($_)
         }
     }
+
     process {
         try {
-            # Thanks to Patrick Meinecke for his help here.
-            # https://github.com/SeeminglyScience/
-            $ps = [powershell]::Create().AddScript({
-                $args[0].InvokeWithContext($null, [psvariable]::new('_', $args[1]))
-            }).AddArgument($ScriptBlock.Ast.GetScriptBlock()).AddArgument($InputObject)
+            do {
+                if($runspace = $im.TryGet()) {
+                    continue
+                }
 
-            # This is how `Start-Job` does it's magic.
-            # Credits to Jordan Borean for his help here.
-            # https://github.com/jborean93
+                if($withTimeout) {
+                    if($task = $im.WaitAny($TimeoutSeconds, $timer)) {
+                        $im.GetTaskResult($task)
+                    }
+                    continue
+                }
 
-            # Reference in the source code:
-            # https://github.com/PowerShell/PowerShell/blob/7dc4587014bfa22919c933607bf564f0ba53db2e/src/System.Management.Automation/engine/ParameterBinderController.cs#L647-L653
-            if($usingParams.Count) {
-                $null = $ps.AddParameters(@{ '--%' = $usingParams })
+                if($task = $im.WaitAny()) {
+                    $im.GetTaskResult($task)
+                }
+            }
+            until($runspace -or $TimeoutSeconds -lt $timer.Elapsed.TotalSeconds)
+
+            if($TimeoutSeconds -lt $timer.Elapsed.TotalSeconds) {
+                return
             }
 
-            $ps.RunspacePool = $pool
-
-            $tasks.Add(@{
-                Instance    = $ps
-                AsyncResult = $ps.BeginInvoke()
-            })
+            $im.AddTask(
+                [PSParallelTask]::new($ScriptBlock, $InputObject, $PSCmdlet).
+                AssociateWith($runspace).
+                AddUsingStatements($usingParams))
         }
         catch {
             $PSCmdlet.WriteError($_)
         }
     }
+
     end {
         try {
-            foreach($task in $tasks) {
-                $task['Instance'].EndInvoke($task['AsyncResult'])
-
-                if($task['Instance'].HadErrors) {
-                    $task['Instance'].Streams.Error
+            if($withTimeout) {
+                while($task = $im.WaitAny($TimeoutSeconds, $timer)) {
+                    $im.GetTaskResult($task)
                 }
+                return
+            }
+
+            while($task = $im.WaitAny()) {
+                $im.GetTaskResult($task)
             }
         }
         catch {
             $PSCmdlet.WriteError($_)
         }
         finally {
-            $tasks.Instance, $pool | ForEach-Object Dispose
+            if($im -is [IDisposable]) {
+                $im.Dispose()
+            }
         }
     }
 }

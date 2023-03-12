@@ -8,14 +8,15 @@ Enables parallel processing of pipeline input objects.
 
 ```powershell
 Invoke-Parallel -InputObject <Object> [-ScriptBlock] <ScriptBlock> [-ThrottleLimit <Int32>]
- [-Variables <Hashtable>] [-Functions <String[]>] [-ThreadOptions <PSThreadOptions>] [<CommonParameters>]
+ [-Variables <Hashtable>] [-Functions <String[]>] [-UseNewRunspace] [-TimeoutSeconds <Int32>]
+ [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
 PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell. This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
 
-This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob) and is merely a simplified take on those with some few improvements.
+This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob).
 
 ## REQUIREMENTS
 
@@ -54,28 +55,26 @@ $message = 'Hello world from {0}'
 ### EXAMPLE 3: Adding to a single thread safe instance
 
 ```powershell
-$sync = [hashtable]::Synchronized(@{})
+$threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
 
 Get-Process | Invoke-Parallel {
-    $sync = $using:sync
-    $sync[$_.Name] += @( $_ )
+    $dict = $using:threadSafeDictionary
+    $dict.TryAdd($_.ProcessName, $_)
 }
 
-$sync
+$threadSafeDictionary["pwsh"]
 ```
 
 ### EXAMPLE 4: Same as previous example but using `-Variables` to pass the reference instance to the Runspaces
 
-This method is the recommended when passing reference instances to the runspaces, `$using:` may fail in some situations.
-
 ```powershell
-$sync = [hashtable]::Synchronized(@{})
+$threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
 
 Get-Process | Invoke-Parallel {
-    $sync[$_.Name] += @( $_ )
-} -Variables @{ sync = $sync }
+    $dict.TryAdd($_.ProcessName, $_)
+} -Variables @{ dict = $threadSafeDictionary }
 
-$sync
+$threadSafeDictionary["pwsh"]
 ```
 
 ### EXAMPLE 5: Demonstrates how to pass a locally defined Function to the Runspace scope
@@ -83,9 +82,7 @@ $sync
 ```powershell
 function Greet { param($s) "$s hey there!" }
 
-0..10 | Invoke-Parallel {
-    Greet $_
-} -Functions Greet
+0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
 ```
 
 ## PARAMETERS
@@ -93,7 +90,8 @@ function Greet { param($s) "$s hey there!" }
 ### -InputObject
 
 Specifies the input objects to be processed in the ScriptBlock.
-<br>__Note: This parameter is intended to be bound from pipeline.__
+
+__Note: This parameter is intended to be bound from pipeline.__
 
 ```yaml
 Type: Object
@@ -110,7 +108,7 @@ Accept wildcard characters: False
 ### -ScriptBlock
 
 Specifies the operation that is performed on each input object.
-<br>This script block is run for every object in the pipeline.
+This script block is run for every object in the pipeline.
 
 ```yaml
 Type: ScriptBlock
@@ -127,8 +125,8 @@ Accept wildcard characters: False
 ### -ThrottleLimit
 
 Specifies the number of script blocks that are invoked in parallel.
-<br>Input objects are blocked until the running script block count falls below the ThrottleLimit.
-<br>The default value is `5`.
+
+Input objects are blocked until the running script block count falls below the `ThrottleLimit`.
 
 ```yaml
 Type: Int32
@@ -145,7 +143,8 @@ Accept wildcard characters: False
 ### -Variables
 
 Specifies a hash table of variables to have available in the Script Block (Runspaces).
-The hash table Keys become the Variable Name inside the Script Block.
+
+The hash table `Keys` become the Variable Name inside the Script Block.
 
 ```yaml
 Type: Hashtable
@@ -175,21 +174,40 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -ThreadOptions
+### -UseNewRunspace
 
-These options control whether a new thread is created when a command is executed within a Runspace.
-<br>This parameter is limited to `ReuseThread` and `UseNewThread`. Default value is `ReuseThread`.
-<br>See [PSThreadOptions Enum](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.psthreadoptions?view=powershellsdk-7.2.0) for details.
+Uses a new runspace for each parallel invocation instead of reusing them.
 
 ```yaml
-Type: PSThreadOptions
+Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
-Accepted values: Default, UseNewThread, ReuseThread, UseCurrentThread
 
 Required: False
 Position: Named
-Default value: ReuseThread
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
+
+### -TimeoutSeconds
+
+Specifies the number of seconds to wait for all input to be processed in parallel.
+
+After the specified timeout time, all running scripts are stopped and any remaining input objects to be processed are ignored.
+
+```yaml
+Type: Int32
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: 0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### CommonParameters
+
+This cmdlet supports the common parameters. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
