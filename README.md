@@ -30,7 +30,7 @@ Install-Module PSParallelPipeline -Scope CurrentUser
 
 ## EXAMPLES
 
-### EXAMPLE 1: Run slow script in parallel batches
+### Example 1: Run slow script in parallel batches
 
 ```powershell
 $message = 'Hello world from {0}'
@@ -41,7 +41,7 @@ $message = 'Hello world from {0}'
 } -ThrottleLimit 3
 ```
 
-### EXAMPLE 2: Same as previous example but with `-Variables` parameter
+### Example 2: Same as previous Example but with `-Variables` parameter
 
 ```powershell
 $message = 'Hello world from {0}'
@@ -52,7 +52,7 @@ $message = 'Hello world from {0}'
 } -Variables @{ message = $message } -ThrottleLimit 3
 ```
 
-### EXAMPLE 3: Adding to a single thread safe instance
+### Example 3: Adding to a single thread safe instance
 
 ```powershell
 $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
@@ -65,7 +65,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### EXAMPLE 4: Same as previous example but using `-Variables` to pass the reference instance to the Runspaces
+### Example 4: Same as previous Example but using `-Variables` to pass the reference instance to the Runspaces
 
 ```powershell
 $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
@@ -77,7 +77,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### EXAMPLE 5: Demonstrates how to pass a locally defined Function to the Runspace scope
+### Example 5: Demonstrates how to pass a locally defined Function to the Runspace scope
 
 ```powershell
 function Greet { param($s) "$s hey there!" }
@@ -211,3 +211,7 @@ Accept wildcard characters: False
 ### CommonParameters
 
 This cmdlet supports the common parameters. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+
+## Contributing
+
+Contributions are more than welcome, if you wish to contribute, fork this repository and submit a pull request with the changes.
