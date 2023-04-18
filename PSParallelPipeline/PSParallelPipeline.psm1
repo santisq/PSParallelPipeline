@@ -278,7 +278,7 @@ function Invoke-Parallel {
         [scriptblock] $ScriptBlock,
 
         [Parameter()]
-        [ValidateRange(1, [int]::MaxValue)]
+        [ValidateRange(1, 63)]
         [int] $ThrottleLimit = 5,
 
         [Parameter()]
