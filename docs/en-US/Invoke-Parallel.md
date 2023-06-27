@@ -20,7 +20,10 @@ Invoke-Parallel -InputObject <Object> [-ScriptBlock] <ScriptBlock> [-ThrottleLim
 
 ## DESCRIPTION
 
-`Invoke-Parallel` is a PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell. This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
+`Invoke-Parallel` is a PowerShell function that allows parallel processing of input objects with similar capabilities as
+[`ForEach-Object`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) with its `-Parallel` parameter.
+
+This function is mostly intended for users of Windows PowerShell 5.1 though fully compatible with newer versions of PowerShell.
 
 ## EXAMPLES
 
@@ -210,12 +213,12 @@ This cmdlet supports the common parameters. For more information, see [about_Com
 
 ## INPUTS
 
-### PSObject
+### Object
 
 You can pipe any object to this cmdlet.
 
 ## OUTPUTS
 
-### PSObject
+### Object
 
 This cmdlet returns objects that are determined by the input.
