@@ -9,11 +9,13 @@ class PSParallelTask : IDisposable {
         # Thanks to Patrick Meinecke for his help here.
         # https://github.com/SeeminglyScience/
         $this.Cmdlet = $Cmdlet
-        $this.Instance = [powershell]::Create().AddScript({
+        $this.Instance = [powershell]::Create().
+            AddScript({
                 param([scriptblock] $Action, [object] $Context)
 
                 $Action.InvokeWithContext($null, [psvariable]::new('_', $Context))
-            }).AddParameters(@{
+            }).
+            AddParameters(@{
                 Action  = $Action.Ast.GetScriptBlock()
                 Context = $PipelineObject
             })

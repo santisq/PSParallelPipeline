@@ -20,14 +20,18 @@ $BuildPath = [IO.Path]::Combine($PSScriptRoot, 'output')
 $PowerShellPath = [IO.Path]::Combine($PSScriptRoot, 'module')
 $psm1 = Join-Path $PowerShellPath -ChildPath ($ModuleName + '.psm1')
 $CSharpPath = [IO.Path]::Combine($PSScriptRoot, 'src', $ModuleName)
+$isBinaryModule = Test-Path $CSharpPath
 $ReleasePath = [IO.Path]::Combine($BuildPath, $ModuleName, $Version)
 $IsUnix = $PSEdition -eq 'Core' -and -not $IsWindows
 $UseNativeArguments = $PSVersionTable.PSVersion -gt '7.0'
-($csharpProjectInfo = [xml]::new()).Load((Get-Item ([IO.Path]::Combine($CSharpPath, '*.csproj'))).FullName)
-$TargetFrameworks = @(@($csharpProjectInfo.Project.PropertyGroup)[0].
-    TargetFrameworks.Split(';', [StringSplitOptions]::RemoveEmptyEntries))
 
-$PSFramework = $TargetFrameworks[0]
+if ($isBinaryModule) {
+    ($csharpProjectInfo = [xml]::new()).Load((Get-Item ([IO.Path]::Combine($CSharpPath, '*.csproj'))).FullName)
+    $TargetFrameworks = @(@($csharpProjectInfo.Project.PropertyGroup)[0].
+        TargetFrameworks.Split(';', [StringSplitOptions]::RemoveEmptyEntries))
+
+    $PSFramework = $TargetFrameworks[0]
+}
 
 task Clean {
     if (Test-Path $ReleasePath) {
@@ -53,7 +57,7 @@ task BuildPowerShell {
         IgnoreAlias     = $true
     }
 
-    if(Test-Path $psm1) {
+    if (Test-Path $psm1) {
         $buildModuleSplat['Suffix'] = Get-Content $psm1 -Raw
     }
 
@@ -61,6 +65,11 @@ task BuildPowerShell {
 }
 
 task BuildManaged {
+    if (-not $isBinaryModule) {
+        Write-Host 'No C# source path found. Skipping BuildManaged...'
+        return
+    }
+
     $arguments = @(
         'publish'
         '--configuration', $Configuration
@@ -125,8 +134,9 @@ task Package {
 
 task Analyze {
     $analyzerPath = [IO.Path]::Combine($PSScriptRoot, 'ScriptAnalyzerSettings.psd1')
-    if(-not (Test-Path $analyzerPath)) {
-        return Write-Host 'No analyzer rules found, skipping...'
+    if (-not (Test-Path $analyzerPath)) {
+        Write-Host 'No analyzer rules found, skipping...'
+        return
     }
 
     $pssaSplat = @{
@@ -146,7 +156,8 @@ task Analyze {
 task DoUnitTest {
     $testsPath = [IO.Path]::Combine($PSScriptRoot, 'tests', 'units')
     if (-not (Test-Path -LiteralPath $testsPath)) {
-        return Write-Host 'No unit tests found, skipping...'
+        Write-Host 'No unit tests found, skipping...'
+        return
     }
 
     $resultsPath = [IO.Path]::Combine($BuildPath, 'TestResults')
@@ -197,8 +208,9 @@ task DoUnitTest {
 
 task DoTest {
     $testsPath = [IO.Path]::Combine($PSScriptRoot, 'tests')
-    if(-not (Test-Path $testsPath)) {
-        return Write-Host 'No Pester tests found, skipping...'
+    if (-not (Test-Path $testsPath)) {
+        Write-Host 'No Pester tests found, skipping...'
+        return
     }
 
     $resultsPath = [IO.Path]::Combine($BuildPath, 'TestResults')

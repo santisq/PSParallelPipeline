@@ -15,7 +15,7 @@
 
 </div>
 
-PSParallelPipeline is a PowerShell Module that includes the `Invoke-Parallel` function, a function that allows parallel processing of input objects with similar capabilities as [`ForEach-Object`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.3) with its `-Parallel` parameter introduced in PowerShell 7.0.
+PSParallelPipeline is a PowerShell Module that includes the `Invoke-Parallel` function, a function that allows parallel processing of input objects with similar capabilities as [`ForEach-Object`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.3) with its `-Parallel` parameter, introduced in PowerShell 7.0.
 
 This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob).
 

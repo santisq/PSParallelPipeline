@@ -1,4 +1,8 @@
-﻿function Invoke-Parallel {
+﻿using namespace System.Management.Automation.Language
+using namespace System.Management.Automation.Runspaces
+
+# .ExternalHelp PSParallelPipeline-help.xml
+function Invoke-Parallel {
     [CmdletBinding(PositionalBinding = $false)]
     [Alias('parallel')]
     param(
@@ -18,15 +22,6 @@
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [ArgumentCompleter({
-                param(
-                    [string] $commandName,
-                    [string] $parameterName,
-                    [string] $wordToComplete
-                )
-
-            (Get-Command -CommandType Filter, Function).Name -like "$wordToComplete*"
-            })]
         [string[]] $Functions,
 
         [Parameter()]
