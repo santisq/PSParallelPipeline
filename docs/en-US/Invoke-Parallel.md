@@ -86,6 +86,45 @@ function Greet { param($s) "$s hey there!" }
 
 This example demonstrates how to pass a locally defined Function to the Runspaces scope.
 
+### Example 6: Setting a timeout for parallel tasks
+
+```powershell
+Get-Process | Invoke-Parallel {
+    Get-Random -Maximum 4 | Start-Sleep
+    $_
+} -ThrottleLimit 10 -TimeoutSeconds 4
+```
+
+If the timeout in seconds is reached all parallel invocations are stopped.
+
+### Example 5: Using a new runspace for each invocation
+
+```powershell
+0..5 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId }
+
+Guid
+----
+ca9e3ff2-1eb0-4911-a288-838574fc7cb2
+775c65bd-5267-4ecb-943c-a1a1788d1116
+0cffb831-8e41-44b6-9ad8-5c9acfca64ce
+e5bc6cce-6cab-4d44-83e5-d947ab56ca15
+b7a9ba07-ad6d-4097-9224-3d87c10c01d7
+ca9e3ff2-1eb0-4911-a288-838574fc7cb2
+
+0..5 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId } -UseNewRunspace
+
+Guid
+----
+e4047803-0ee7-43e3-b195-c5a456db0cee
+3344f9f5-7b02-4926-b69e-313830cf4ee2
+ac22866a-7a41-4c24-b31c-47155054022f
+d5be0085-6f80-49c6-9a31-e50f1960329d
+80405d89-87fb-47f0-b6ba-a59392a99b6f
+3b78d3de-5759-4364-85df-dc72427e6af8
+```
+
+By default the runspaces are reused. When the `-UseNewRunspace` parameter is used each parallel invocation will create a new runspace.
+
 ## PARAMETERS
 
 ### -Functions

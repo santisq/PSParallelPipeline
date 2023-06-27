@@ -95,8 +95,7 @@ function Invoke-Parallel {
                 return
             }
 
-            $im.AddTask(
-                [PSParallelTask]::new($ScriptBlock, $InputObject, $PSCmdlet).
+            $im.AddTask([PSParallelTask]::new($ScriptBlock, $InputObject, $PSCmdlet).
                 AssociateWith($runspace).
                 AddUsingStatements($usingParams))
         }

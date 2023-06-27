@@ -1,6 +1,5 @@
 ﻿# Example 1
 $message = 'Hello world from {0}'
-
 0..10 | Invoke-Parallel {
     $using:message -f [runspace]::DefaultRunspace.InstanceId
     Start-Sleep 1
