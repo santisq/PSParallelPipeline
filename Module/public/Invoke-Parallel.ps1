@@ -22,6 +22,7 @@ function Invoke-Parallel {
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
+        [ArgumentCompleter([CommandCompleter])]
         [string[]] $Functions,
 
         [Parameter()]
