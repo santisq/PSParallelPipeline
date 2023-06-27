@@ -1,19 +1,11 @@
-<h1 align="center">PSParallelPipeline</h1>
+---
+external help file: PSParallelPipeline-help.xml
+Module Name: PSParallelPipeline
+online version: https://github.com/santisq/PSParallelPipeline
+schema: 2.0.0
+---
 
-</div>
-
-<div align="center">
-    <sub>
-        Zip and GZip utilities for PowerShell
-    </sub>
-    <br /><br />
-
-[![build](https://github.com/santisq/PSParallelPipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/santisq/PSParallelPipeline/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/santisq/PSParallelPipeline/branch/main/graph/badge.svg?token=b51IOhpLfQ)](https://codecov.io/gh/santisq/PSParallelPipeline)
-[![PowerShell Gallery](https://img.shields.io/powershellgallery/v/PSParallelPipeline?label=gallery)](https://www.powershellgallery.com/packages/PSParallelPipeline)
-[![LICENSE](https://img.shields.io/github/license/santisq/PSParallelPipeline)](https://github.com/santisq/PSParallelPipeline/blob/main/LICENSE)
-
-</div>
+# Invoke-Parallel
 
 ## SYNOPSIS
 
@@ -24,28 +16,18 @@ Enables parallel processing of pipeline input objects.
 ```powershell
 Invoke-Parallel -InputObject <Object> [-ScriptBlock] <ScriptBlock> [-ThrottleLimit <Int32>]
  [-Variables <Hashtable>] [-Functions <String[]>] [-UseNewRunspace] [-TimeoutSeconds <Int32>]
- [<CommonParameters>]
+ [-ProgressAction <ActionPreference>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
 
-PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell. This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
+`Invoke-Parallel` is a PowerShell function that intends to emulate [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.2#-parallel) for those stuck with Windows PowerShell. This function shares similar usage and capabilities than the ones available in the built-in cmdlet.
 
 This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and Boe Prox's [`PoshRSJob`](https://github.com/proxb/PoshRSJob).
 
-## REQUIREMENTS
-
-Compatible with __Windows PowerShell 5.1__ and __PowerShell Core 7+__.
-
-## INSTALLATION
-
-```powershell
-Install-Module PSParallelPipeline -Scope CurrentUser
-```
-
 ## EXAMPLES
 
-### Example 1: Run slow script in parallel batches
+### EXAMPLE 1: Run slow script in parallel batches
 
 ```powershell
 $message = 'Hello world from {0}'
@@ -67,6 +49,8 @@ $message = 'Hello world from {0}'
 } -Variables @{ message = $message } -ThrottleLimit 3
 ```
 
+The `-Variables` parameter allows to pass variables to the parallel runspaces. The hash table `Keys` become the Variable Name inside the Script Block.
+
 ### Example 3: Adding to a single thread safe instance
 
 ```powershell
@@ -80,7 +64,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### Example 4: Same as previous example using `-Variables` parameter
+### Example 4: Adding to a single thread safe instance using `-Variables` parameter
 
 ```powershell
 $threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
@@ -92,7 +76,7 @@ Get-Process | Invoke-Parallel {
 $threadSafeDictionary["pwsh"]
 ```
 
-### Example 5: Demonstrates how to pass a locally defined Function to the parallel scope
+### Example 5: Passing a locally defined Function to the parallel scope
 
 ```powershell
 function Greet { param($s) "$s hey there!" }
@@ -100,11 +84,29 @@ function Greet { param($s) "$s hey there!" }
 0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
 ```
 
+This example demonstrates how to pass a locally defined Function to the Runspaces scope.
+
 ## PARAMETERS
+
+### -Functions
+
+Existing functions in the Local Session to have available in the Script Block (Runspaces).
+
+```yaml
+Type: String[]
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
 
 ### -InputObject
 
-Specifies the input objects to be processed in the Script Block.
+Specifies the input objects to be processed in the ScriptBlock.
 
 __Note: This parameter is intended to be bound from pipeline.__
 
@@ -140,8 +142,8 @@ Accept wildcard characters: False
 ### -ThrottleLimit
 
 Specifies the number of script blocks that are invoked in parallel.
-
-Input objects are blocked until the running script block count falls below the `ThrottleLimit`.
+Input objects are blocked until the running script block count falls below the ThrottleLimit.
+__The default value is 5__.
 
 ```yaml
 Type: Int32
@@ -155,36 +157,19 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -Variables
+### -TimeoutSeconds
 
-Specifies a hash table of variables to have available in the Script Block (Runspaces).
-
-The hash table `Keys` become the Variable Name inside the Script Block.
+Specifies the number of seconds to wait for all input to be processed in parallel.
+After the specified timeout time, all running scripts are stopped and any remaining input objects to be processed are ignored.
 
 ```yaml
-Type: Hashtable
+Type: Int32
 Parameter Sets: (All)
 Aliases:
 
 Required: False
 Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -Functions
-
-Existing functions in the Local Session to have available in the Script Block (Runspaces).
-
-```yaml
-Type: String[]
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
+Default value: 0
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -205,20 +190,19 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -TimeoutSeconds
+### -Variables
 
-Specifies the number of seconds to wait for all input to be processed in parallel.
-
-After the specified timeout time, all running scripts are stopped and any remaining input objects to be processed are ignored.
+Specifies a hash table of variables to have available in the Script Block (Runspaces).
+The hash table `Keys` become the Variable Name inside the Script Block.
 
 ```yaml
-Type: Int32
+Type: Hashtable
 Parameter Sets: (All)
 Aliases:
 
 Required: False
 Position: Named
-Default value: 0
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -227,6 +211,14 @@ Accept wildcard characters: False
 
 This cmdlet supports the common parameters. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
 
-## CONTRIBUTING
+## INPUTS
 
-Contributions are more than welcome, if you wish to contribute, fork this repository and submit a pull request with the changes.
+### PSObject
+
+You can pipe any object to this cmdlet.
+
+## OUTPUTS
+
+### PSObject
+
+This cmdlet returns objects that are determined by the input.
