@@ -16,10 +16,13 @@ param (
     [Parameter(Mandatory)]
     [String] $OutputFile,
 
-    [Parameter()]
-    [string] $ModulePath,
+    [Parameter(ParameterSetName = 'Coverage', Mandatory)]
+    [string] $SourceRoot,
 
-    [Parameter()]
+    [Parameter(ParameterSetName = 'Coverage', Mandatory)]
+    [string] $ReleasePath,
+
+    [Parameter(ParameterSetName = 'Coverage')]
     [switch] $Coverage
 )
 
@@ -39,9 +42,15 @@ foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priorit
 [PSCustomObject] $PSVersionTable |
     Select-Object -Property *, @{N = 'Architecture'; E = {
             switch ([IntPtr]::Size) {
-                4 { 'x86' }
-                8 { 'x64' }
-                default { 'Unknown' }
+                4 {
+                    'x86'
+                }
+                8 {
+                    'x64'
+                }
+                default {
+                    'Unknown'
+                }
             }
         }
     } |
@@ -52,12 +61,12 @@ $configuration = [PesterConfiguration]::Default
 $configuration.Output.Verbosity = 'Detailed'
 
 if ($Coverage.IsPresent) {
+    $configuration.Run.PassThru = $true
     $configuration.CodeCoverage.Enabled = $true
+    $configuration.CodeCoverage.Path = $ReleasePath
     $configuration.CodeCoverage.OutputPath = [System.IO.Path]::Combine(
         [System.IO.Path]::GetDirectoryName($OutputFile),
         'Coverage.xml')
-    $configuration.CodeCoverage.Path = $ModulePath
-    # $configuration.Run.PassThru = $true
     # $source = Join-Path (Split-Path $PSScriptRoot) Module
 }
 
@@ -67,4 +76,30 @@ $configuration.TestResult.Enabled = $true
 $configuration.TestResult.OutputPath = $OutputFile
 $configuration.TestResult.OutputFormat = 'NUnitXml'
 
-Invoke-Pester -Configuration $configuration -WarningAction Ignore
+Invoke-Pester -Configuration $configuration -WarningAction Ignore | & {
+    param(
+        [Parameter(Mandatory)]
+        [string] $SourceRoot,
+
+        [Parameter(ValueFromPipeline)]
+        [PSObject] $InputObject
+    )
+
+    process {
+        Push-Location $SourceRoot
+        try {
+            $InputObject.CodeCoverage.CommandsMissed |
+                Convert-LineNumber -Passthru |
+                ForEach-Object {
+                    [pscustomobject]@{
+                        SourceFile = $_.SourceFile
+                        Line       = $_.SourceLineNumber
+                        Command    = $_.Command
+                    }
+            }
+        }
+        finally {
+            Pop-Location
+        }
+    }
+} -SourceRoot $SourceRoot

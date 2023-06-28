@@ -269,7 +269,8 @@ task DoTest {
     if (-not $isBinaryModule) {
         $arguments += @(
             '-Coverage'
-            '-ModulePath', $modulePath
+            '-ReleasePath', $ReleasePath
+            '-SourceRoot', $PowerShellPath
         )
     }
 
