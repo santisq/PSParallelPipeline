@@ -236,7 +236,7 @@ task DoTest {
         '-OutputFile', $resultsFile
     )
 
-    if ($Configuration -eq 'Debug') {
+    if ($Configuration -eq 'Debug' -and $isBinaryModule) {
         $unitCoveragePath = [IO.Path]::Combine($resultsPath, 'UnitCoverage.json')
         $targetArgs = '"' + ($arguments -join '" "') + '"'
 
@@ -259,6 +259,13 @@ task DoTest {
             }
         )
         $pwsh = 'coverlet'
+    }
+
+    if (-not $isBinaryModule) {
+        $arguments += @(
+            '-Coverage'
+            '-ModulePath', $ReleasePath
+        )
     }
 
     & $pwsh $arguments

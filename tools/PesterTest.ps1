@@ -11,12 +11,16 @@ The path to write the Pester test results to.
 [CmdletBinding()]
 param (
     [Parameter(Mandatory)]
-    [String]
-    $TestPath,
+    [String] $TestPath,
 
     [Parameter(Mandatory)]
-    [String]
-    $OutputFile
+    [String] $OutputFile,
+
+    [Parameter()]
+    [string] $ModulePath,
+
+    [Parameter()]
+    [switch] $Coverage
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,6 +50,15 @@ foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priorit
 
 $configuration = [PesterConfiguration]::Default
 $configuration.Output.Verbosity = 'Detailed'
+
+if ($Coverage.IsPresent) {
+    $configuration.CodeCoverage.Enabled = $true
+    $configuration.CodeCoverage.OutputPath = [System.IO.Path]::Combine(
+        [System.IO.Path]::GetDirectoryName($OutputFile),
+        'Coverage.xml')
+    $configuration.CodeCoverage.Path = $ModulePath
+}
+
 $configuration.Run.Exit = $true
 $configuration.Run.Path = $TestPath
 $configuration.TestResult.Enabled = $true

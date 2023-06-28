@@ -7,6 +7,7 @@ param(
     $Configuration = 'Debug',
 
     [Parameter()]
+    [ValidateSet('Build', 'Test')]
     [string[]]
     $Task = 'Build'
 )
@@ -55,10 +56,12 @@ end {
         Import-Module -Name $targetPath -Force -ErrorAction Stop -DisableNameChecking
     }
 
-    $dotnetTools = @(dotnet tool list --global) -join "`n"
-    if (-not $dotnetTools.Contains('coverlet.console')) {
-        Write-Host 'Installing dotnet tool coverlet.console'
-        dotnet tool install --global coverlet.console
+    if (Test-Path (Join-Path $PSScriptRoot src)) {
+        $dotnetTools = @(dotnet tool list --global) -join "`n"
+        if (-not $dotnetTools.Contains('coverlet.console')) {
+            Write-Host 'Installing dotnet tool coverlet.console'
+            dotnet tool install --global coverlet.console
+        }
     }
 
     $invokeBuildSplat = @{
