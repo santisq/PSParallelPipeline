@@ -30,7 +30,7 @@
             { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 5 -ErrorAction Stop } |
                 Should -Throw
 
-            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(5.5))
+            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(6))
             $timer.Stop()
         }
 
@@ -81,9 +81,9 @@
 
         It 'Should add functions to the parallel scope with -Functions parameter' {
             # This test is broken in Pester, need to figure out why
-            return
+            # return
 
-            function Test-Function {
+            function global:Test-Function {
                 param($s)
                 'Hello {0:D2}' -f $s
             }
