@@ -57,6 +57,8 @@ if ($Coverage.IsPresent) {
         [System.IO.Path]::GetDirectoryName($OutputFile),
         'Coverage.xml')
     $configuration.CodeCoverage.Path = $ModulePath
+    # $configuration.Run.PassThru = $true
+    # $source = Join-Path (Split-Path $PSScriptRoot) Module
 }
 
 $configuration.Run.Exit = $true

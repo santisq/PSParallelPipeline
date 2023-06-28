@@ -223,6 +223,11 @@ task DoTest {
         Remove-Item $resultsFile -ErrorAction Stop -Force
     }
 
+    $coverageFile = [IO.Path]::Combine($resultsPath, 'Coverage.xml')
+    if (Test-Path $coverageFile) {
+        Remove-Item $coverageFile -ErrorAction Stop -Force
+    }
+
     $pesterScript = [IO.Path]::Combine($PSScriptRoot, 'tools', 'PesterTest.ps1')
     $pwsh = [Environment]::GetCommandLineArgs()[0] -replace '\.dll$'
     $arguments = @(
@@ -264,7 +269,7 @@ task DoTest {
     if (-not $isBinaryModule) {
         $arguments += @(
             '-Coverage'
-            '-ModulePath', $ReleasePath
+            '-ModulePath', $modulePath
         )
     }
 

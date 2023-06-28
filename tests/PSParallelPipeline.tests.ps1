@@ -83,6 +83,8 @@
             # This test is broken in Pester, need to figure out why
             # return
 
+            # seems to need global scoped function for some reason...
+
             function global:Test-Function {
                 param($s)
                 'Hello {0:D2}' -f $s
