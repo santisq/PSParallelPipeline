@@ -97,7 +97,7 @@ Get-Process | Invoke-Parallel {
 
 If the timeout in seconds is reached all parallel invocations are stopped.
 
-### Example 5: Using a new runspace for each invocation
+### Example 7: Using a new runspace for each invocation
 
 ```powershell
 0..5 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId }

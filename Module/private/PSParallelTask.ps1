@@ -39,6 +39,9 @@ class PSParallelTask : IDisposable {
             $this.Cmdlet.WriteObject($this.Instance.EndInvoke($this.AsyncResult), $true)
             $this.GetErrors()
         }
+        catch [PipelineStoppedException] {
+            $this.Cmdlet.WriteError($_)
+        }
         catch {
             $this.Cmdlet.WriteError($_)
         }

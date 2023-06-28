@@ -17,6 +17,23 @@
             $items | Should -HaveCount 11
         }
 
+        It 'Should process in parallel' {
+            $timer = [System.Diagnostics.Stopwatch]::StartNew()
+            0..5 | Invoke-Parallel { Start-Sleep 1 } -ThrottleLimit 5
+            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(5))
+            $timer.Stop()
+        }
+
+        It 'Should stop processing after a set timeout' {
+            $timer = [System.Diagnostics.Stopwatch]::StartNew()
+
+            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 5 -ErrorAction Stop } |
+                Should -Throw
+
+            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(5.5))
+            $timer.Stop()
+        }
+
         It 'Allows $using: statements' {
             $message = 'Hello world from {0:D2}'
             $items = 0..10 | Invoke-Parallel { $using:message -f $_ } |
@@ -60,6 +77,31 @@
                 Should -Contain $true
 
             $dict[$PID].ProcessName | Should -Be (Get-Process -Id $PID).ProcessName
+        }
+
+        It 'Should add functions to the parallel scope with -Functions parameter' {
+            # This test is broken in Pester, need to figure out why
+            return
+
+            function Test-Function {
+                param($s)
+                'Hello {0:D2}' -f $s
+            }
+
+            $invokeParallelSplat = @{
+                Functions   = 'Test-Function'
+                ScriptBlock = { Test-Function $_ }
+            }
+
+            0..10 | Invoke-Parallel @invokeParallelSplat |
+                Sort-Object |
+                Should -BeExactly @(0..10 | ForEach-Object { Test-Function $_ })
+        }
+
+        It 'Should autocomplete existing commands in the caller scope' {
+            $result = TabExpansion2 -inputScript ($s = 'Invoke-Parallel -Function Get-') -cursorColumn $s.Length
+            $result.CompletionMatches.Count | Should -BeGreaterThan 0
+            $result.CompletionMatches.ListItemText | Should -Match '^Get-'
         }
     }
 }

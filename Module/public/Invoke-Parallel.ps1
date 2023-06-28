@@ -1,5 +1,6 @@
 ﻿using namespace System.Management.Automation.Language
 using namespace System.Management.Automation.Runspaces
+using namespace System.Text
 
 # .ExternalHelp PSParallelPipeline-help.xml
 function Invoke-Parallel {
@@ -38,12 +39,17 @@ function Invoke-Parallel {
             $iss = [initialsessionstate]::CreateDefault2()
 
             foreach ($key in $Variables.PSBase.Keys) {
-                $iss.Variables.Add([SessionStateVariableEntry]::new($key, $Variables[$key], ''))
+                $iss.Variables.Add(
+                    [SessionStateVariableEntry]::new($key, $Variables[$key], ''))
             }
 
             foreach ($function in $Functions) {
-                $def = (Get-Command $function).Definition
-                $iss.Commands.Add([SessionStateFunctionEntry]::new($function, $def))
+                $def = $PSCmdlet.InvokeCommand.GetCommand(
+                    $function,
+                    [System.Management.Automation.CommandTypes]::Function)
+
+                $iss.Commands.Add(
+                    [SessionStateFunctionEntry]::new($function, $def.Definition))
             }
 
             $usingParams = @{}

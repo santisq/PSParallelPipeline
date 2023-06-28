@@ -1,5 +1,6 @@
 ﻿using namespace System.Collections.Generic
 using namespace System.Diagnostics
+using namespace System.Management.Automation
 using namespace System.Management.Automation.Host
 using namespace System.Threading
 
@@ -75,12 +76,15 @@ class InvocationManager : IDisposable {
     }
 
     [void] GetTaskResult([PSParallelTask] $Task) {
-        $this.Tasks.Remove($Task)
-        $this.Release($Task.GetRunspace())
-        $Task.EndInvoke()
-
-        if ($Task -is [IDisposable]) {
-            $Task.Dispose()
+        try {
+            $this.Tasks.Remove($Task)
+            $this.Release($Task.GetRunspace())
+            $Task.EndInvoke()
+        }
+        finally {
+            if ($Task -is [IDisposable]) {
+                $Task.Dispose()
+            }
         }
     }
 
