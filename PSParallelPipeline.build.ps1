@@ -7,6 +7,7 @@ param(
 $modulePath = [IO.Path]::Combine($PSScriptRoot, 'Module')
 $manifestItem = Get-Item ([IO.Path]::Combine($modulePath, '*.psd1'))
 $ModuleName = $manifestItem.BaseName
+$psm1 = Join-Path $modulePath -ChildPath ($ModuleName + '.psm1')
 
 $testModuleManifestSplat = @{
     Path          = $manifestItem.FullName
@@ -16,9 +17,8 @@ $testModuleManifestSplat = @{
 
 $Manifest = Test-ModuleManifest @testModuleManifestSplat
 $Version = $Manifest.Version
+
 $BuildPath = [IO.Path]::Combine($PSScriptRoot, 'output')
-$PowerShellPath = [IO.Path]::Combine($PSScriptRoot, 'module')
-$psm1 = Join-Path $PowerShellPath -ChildPath ($ModuleName + '.psm1')
 $CSharpPath = [IO.Path]::Combine($PSScriptRoot, 'src', $ModuleName)
 $isBinaryModule = Test-Path $CSharpPath
 $ReleasePath = [IO.Path]::Combine($BuildPath, $ModuleName, $Version)
@@ -42,7 +42,7 @@ task BuildDocs {
 
 task BuildPowerShell {
     $buildModuleSplat = @{
-        SourcePath      = $PowerShellPath
+        SourcePath      = $modulePath
         OutputDirectory = $ReleasePath
         Encoding        = 'UTF8Bom'
         IgnoreAlias     = $true
@@ -217,7 +217,7 @@ task DoTest {
     $testArgs = @{
         TestPath    = $testsPath
         ResultPath  = $resultsPath
-        SourceRoot  = $PowerShellPath
+        SourceRoot  = $modulePath
         ReleasePath = $ReleasePath
     }
 
@@ -225,8 +225,5 @@ task DoTest {
 }
 
 task Build -Jobs Clean, BuildManaged, BuildPowerShell, CopyToRelease, BuildDocs, Package
-
-# FIXME: Work out why we need the obj and bin folder for coverage to work
 task Test -Jobs BuildManaged, Analyze, DoUnitTest, DoTest
-
 task . Build

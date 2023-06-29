@@ -1,8 +1,9 @@
 ﻿Describe PSParallelPipeline {
     BeforeAll {
+        $global:ErrorActionPreference = 'Stop'
         $moduleName = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '..', 'Module', '*.psd1'))).BaseName
         $manifestPath = [IO.Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
-        Import-Module $manifestPath -ErrorAction Stop
+        Import-Module $manifestPath
     }
 
     Context 'Invoke-Parallel' -Tag 'Invoke-Parallel' {
@@ -27,7 +28,7 @@
         It 'Should stop processing after a set timeout' {
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
-            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 -ErrorAction Stop } |
+            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 } |
                 Should -Throw
 
             $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
@@ -104,6 +105,20 @@
             $result = TabExpansion2 -inputScript ($s = 'Invoke-Parallel -Function Get-') -cursorColumn $s.Length
             $result.CompletionMatches.Count | Should -BeGreaterThan 0
             $result.CompletionMatches.ListItemText | Should -Match '^Get-'
+        }
+
+        It 'Should throw a terminating error' {
+            { 0..1 | Invoke-Parallel { throw } } | Should -Throw
+        }
+
+        It 'Should write to the Error Stream' {
+            try {
+                0..1 | Invoke-Parallel { Write-Error 'hello world!' }
+            }
+            catch {
+                $_ | Should -BeOfType ([System.Management.Automation.ErrorRecord])
+            }
+
         }
     }
 }
