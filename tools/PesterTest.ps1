@@ -1,32 +1,24 @@
-﻿<#
-.SYNOPSIS
-Run Pester test
-
-.PARAMETER TestPath
-The path to the tests to run
-
-.PARAMETER OutputFile
-The path to write the Pester test results to.
-#>
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param (
+    # The path where the Pester Tests are
     [Parameter(Mandatory)]
     [String] $TestPath,
 
+    # The path where we export the Pester Results (Pester.xml, Coverage.xml, Coverage.json)
     [Parameter(Mandatory)]
-    [String] $OutputFile,
+    [String] $ResultPath,
 
-    [Parameter(ParameterSetName = 'Coverage', Mandatory)]
+    # The path to the Source Code
+    [Parameter(Mandatory)]
     [string] $SourceRoot,
 
-    [Parameter(ParameterSetName = 'Coverage', Mandatory)]
-    [string] $ReleasePath,
-
-    [Parameter(ParameterSetName = 'Coverage')]
-    [switch] $Coverage
+    # The path to the built Module
+    [Parameter(Mandatory)]
+    [string] $ReleasePath
 )
 
 $ErrorActionPreference = 'Stop'
+
 $requirements = Import-PowerShellDataFile ([IO.Path]::Combine($PSScriptRoot, 'requiredModules.psd1'))
 foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priority'] }) {
     $importModuleSplat = @{
@@ -40,7 +32,9 @@ foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priorit
 }
 
 [PSCustomObject] $PSVersionTable |
-    Select-Object -Property *, @{N = 'Architecture'; E = {
+    Select-Object -Property *, @{
+        Name       = 'Architecture'
+        Expression = {
             switch ([IntPtr]::Size) {
                 4 {
                     'x86'
@@ -59,47 +53,54 @@ foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priorit
 
 $configuration = [PesterConfiguration]::Default
 $configuration.Output.Verbosity = 'Detailed'
-
-if ($Coverage.IsPresent) {
-    $configuration.Run.PassThru = $true
-    $configuration.CodeCoverage.Enabled = $true
-    $configuration.CodeCoverage.Path = $ReleasePath
-    $configuration.CodeCoverage.OutputPath = [System.IO.Path]::Combine(
-        [System.IO.Path]::GetDirectoryName($OutputFile),
-        'Coverage.xml')
-    # $source = Join-Path (Split-Path $PSScriptRoot) Module
-}
-
+$configuration.Run.PassThru = $true
+$configuration.CodeCoverage.Enabled = $true
+$configuration.CodeCoverage.Path = $ReleasePath
+$configuration.CodeCoverage.OutputPath = [IO.Path]::Combine($ResultPath, 'Coverage.xml')
 $configuration.Run.Exit = $true
 $configuration.Run.Path = $TestPath
 $configuration.TestResult.Enabled = $true
-$configuration.TestResult.OutputPath = $OutputFile
+$configuration.TestResult.OutputPath = [IO.Path]::Combine($ResultPath, 'Pester.xml')
 $configuration.TestResult.OutputFormat = 'NUnitXml'
 
-Invoke-Pester -Configuration $configuration -WarningAction Ignore | & {
-    param(
-        [Parameter(Mandatory)]
-        [string] $SourceRoot,
+$pesterResult = Invoke-Pester -Configuration $configuration -WarningAction Ignore
 
-        [Parameter(ValueFromPipeline)]
-        [PSObject] $InputObject
-    )
+Push-Location $SourceRoot
 
-    process {
-        Push-Location $SourceRoot
-        try {
-            $InputObject.CodeCoverage.CommandsMissed |
-                Convert-LineNumber -Passthru |
-                ForEach-Object {
-                    [pscustomobject]@{
-                        SourceFile = $_.SourceFile
-                        Line       = $_.SourceLineNumber
-                        Command    = $_.Command
-                    }
-            }
+$out = [ordered]@{
+    coverage = [ordered]@{}
+    messages = [ordered]@{}
+}
+
+$coverageReults = @(
+    $pesterResult.CodeCoverage.CommandsMissed
+    $pesterResult.CodeCoverage.CommandsExecuted
+) | Convert-LineNumber -Passthru
+
+$groups = $coverageReults | Group-Object SourceFile | ForEach-Object {
+    $out['coverage'][$_.Name] = [System.Collections.Generic.List[Object]]::new((, $null))
+    $out['messages'][$_.Name] = [ordered]@{}
+    $_
+}
+
+foreach ($group in $groups) {
+    $map = $group.Group | Group-Object SourceLineNumber -AsHashTable -AsString
+    $totalLines = [System.Linq.Enumerable]::Count(
+        [System.IO.File]::ReadLines((Get-Item $group.Name).FullName))
+
+    foreach ($line in 1..$totalLines) {
+        $line = $line.ToString()
+        if ($map.ContainsKey($line)) {
+            $out['coverage'][$group.Name].Add($map[$line].HitCount)
+            $out['messages'][$group.Name][$line] = $map[$line].Command
+            continue
         }
-        finally {
-            Pop-Location
-        }
+
+        $out['coverage'][$group.Name].Add($null)
     }
-} -SourceRoot $SourceRoot
+}
+
+$out | ConvertTo-Json -Depth 99 |
+    Set-Content ([IO.Path]::Combine($ResultPath, 'Coverage.json'))
+
+Pop-Location

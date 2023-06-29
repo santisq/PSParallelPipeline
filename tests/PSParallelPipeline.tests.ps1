@@ -27,10 +27,10 @@
         It 'Should stop processing after a set timeout' {
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
-            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 5 -ErrorAction Stop } |
+            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 -ErrorAction Stop } |
                 Should -Throw
 
-            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(6))
+            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
             $timer.Stop()
         }
 

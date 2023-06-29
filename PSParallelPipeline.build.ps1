@@ -1,5 +1,4 @@
-﻿# I might've also stolen this from jborean93 ¯\_(ツ)_/¯
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('Debug', 'Release')]
     [string] $Configuration = 'Debug'
@@ -14,6 +13,7 @@ $testModuleManifestSplat = @{
     ErrorAction   = 'Ignore'
     WarningAction = 'Ignore'
 }
+
 $Manifest = Test-ModuleManifest @testModuleManifestSplat
 $Version = $Manifest.Version
 $BuildPath = [IO.Path]::Combine($PSScriptRoot, 'output')
@@ -22,16 +22,7 @@ $psm1 = Join-Path $PowerShellPath -ChildPath ($ModuleName + '.psm1')
 $CSharpPath = [IO.Path]::Combine($PSScriptRoot, 'src', $ModuleName)
 $isBinaryModule = Test-Path $CSharpPath
 $ReleasePath = [IO.Path]::Combine($BuildPath, $ModuleName, $Version)
-$IsUnix = $PSEdition -eq 'Core' -and -not $IsWindows
 $UseNativeArguments = $PSVersionTable.PSVersion -gt '7.0'
-
-if ($isBinaryModule) {
-    ($csharpProjectInfo = [xml]::new()).Load((Get-Item ([IO.Path]::Combine($CSharpPath, '*.csproj'))).FullName)
-    $TargetFrameworks = @(@($csharpProjectInfo.Project.PropertyGroup)[0].
-        TargetFrameworks.Split(';', [StringSplitOptions]::RemoveEmptyEntries))
-
-    $PSFramework = $TargetFrameworks[0]
-}
 
 task Clean {
     if (Test-Path $ReleasePath) {
@@ -218,67 +209,19 @@ task DoTest {
         New-Item $resultsPath -ItemType Directory -ErrorAction Stop | Out-Null
     }
 
-    $resultsFile = [IO.Path]::Combine($resultsPath, 'Pester.xml')
-    if (Test-Path $resultsFile) {
-        Remove-Item $resultsFile -ErrorAction Stop -Force
-    }
-
-    $coverageFile = [IO.Path]::Combine($resultsPath, 'Coverage.xml')
-    if (Test-Path $coverageFile) {
-        Remove-Item $coverageFile -ErrorAction Stop -Force
-    }
+    Get-ChildItem -LiteralPath $resultsPath |
+        Remove-Item -ErrorAction Stop -Force
 
     $pesterScript = [IO.Path]::Combine($PSScriptRoot, 'tools', 'PesterTest.ps1')
-    $pwsh = [Environment]::GetCommandLineArgs()[0] -replace '\.dll$'
-    $arguments = @(
-        '-NoProfile'
-        '-NonInteractive'
-        if (-not $IsUnix) {
-            '-ExecutionPolicy', 'Bypass'
-        }
-        '-File', $pesterScript
-        '-TestPath', $testsPath
-        '-OutputFile', $resultsFile
-    )
 
-    if ($Configuration -eq 'Debug' -and $isBinaryModule) {
-        $unitCoveragePath = [IO.Path]::Combine($resultsPath, 'UnitCoverage.json')
-        $targetArgs = '"' + ($arguments -join '" "') + '"'
-
-        if ($UseNativeArguments) {
-            $watchFolder = [IO.Path]::Combine($ReleasePath, 'bin', $PSFramework)
-        }
-        else {
-            $targetArgs = '"' + ($targetArgs -replace '"', '\"') + '"'
-            $watchFolder = '"{0}"' -f ([IO.Path]::Combine($ReleasePath, 'bin', $PSFramework))
-        }
-
-        $arguments = @(
-            $watchFolder
-            '--target', $pwsh
-            '--targetargs', $targetArgs
-            '--output', ([IO.Path]::Combine($resultsPath, 'Coverage.xml'))
-            '--format', 'cobertura'
-            if (Test-Path -LiteralPath $unitCoveragePath) {
-                '--merge-with', $unitCoveragePath
-            }
-        )
-        $pwsh = 'coverlet'
+    $testArgs = @{
+        TestPath    = $testsPath
+        ResultPath  = $resultsPath
+        SourceRoot  = $PowerShellPath
+        ReleasePath = $ReleasePath
     }
 
-    if (-not $isBinaryModule) {
-        $arguments += @(
-            '-Coverage'
-            '-ReleasePath', $ReleasePath
-            '-SourceRoot', $PowerShellPath
-        )
-    }
-
-    & $pwsh $arguments
-
-    if ($LASTEXITCODE) {
-        throw 'Pester failed tests'
-    }
+    & $pesterScript @testArgs
 }
 
 task Build -Jobs Clean, BuildManaged, BuildPowerShell, CopyToRelease, BuildDocs, Package
