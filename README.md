@@ -23,7 +23,7 @@ This project is greatly inspired by RamblingCookieMonster's [`Invoke-Parallel`](
 
 Check out [__the docs__](./docs/en-US/) for information about how to use this Module.
 
-## INSTALLATION
+## Installation
 
 ### Gallery
 
@@ -41,10 +41,10 @@ Set-Location ./PSParallelPipeline
 ./build.ps1
 ```
 
-## REQUIREMENTS
+## Requirements
 
 Compatible with __Windows PowerShell 5.1__ and [__PowerShell Core 7+__](https://github.com/PowerShell/PowerShell).
 
-## CONTRIBUTING
+## Contributing
 
 Contributions are more than welcome, if you wish to contribute, fork this repository and submit a pull request with the changes.
