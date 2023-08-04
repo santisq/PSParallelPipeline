@@ -1,4 +1,5 @@
-﻿using namespace System.Management.Automation.Language
+﻿using namespace System.Management.Automation
+using namespace System.Management.Automation.Language
 using namespace System.Management.Automation.Runspaces
 using namespace System.Text
 
@@ -39,14 +40,21 @@ function Invoke-Parallel {
             $iss = [initialsessionstate]::CreateDefault2()
 
             foreach ($key in $Variables.PSBase.Keys) {
+                if ($Variables[$key] -is [scriptblock]) {
+                    $PSCmdlet.ThrowTerminatingError([ErrorRecord]::new(
+                        [PSArgumentException]::new('Passed-in script block variables are not supported.'),
+                        'VariableCannotBeScriptBlock',
+                        [ErrorCategory]::InvalidType,
+                        $Variables[$key]))
+                }
+
                 $iss.Variables.Add(
                     [SessionStateVariableEntry]::new($key, $Variables[$key], ''))
             }
 
             foreach ($function in $Functions) {
                 $def = $PSCmdlet.InvokeCommand.GetCommand(
-                    $function,
-                    [System.Management.Automation.CommandTypes]::Function)
+                    $function, [CommandTypes]::Function)
 
                 $iss.Commands.Add(
                     [SessionStateFunctionEntry]::new($function, $def.Definition))
@@ -62,7 +70,17 @@ function Invoke-Parallel {
 
                 $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLowerInvariant()))
                 if (-not $usingParams.ContainsKey($key)) {
-                    $usingParams.Add($key, $PSCmdlet.SessionState.PSVariable.GetValue($varPath))
+                    $value = $PSCmdlet.SessionState.PSVariable.GetValue($varPath)
+
+                    if ($value -is [scriptblock]) {
+                        $PSCmdlet.ThrowTerminatingError([ErrorRecord]::new(
+                            [PSArgumentException]::new('Passed-in script block variables are not supported.'),
+                            'VariableCannotBeScriptBlock',
+                            [ErrorCategory]::InvalidType,
+                            $value))
+                    }
+
+                    $usingParams.Add($key, $value)
                 }
             }
 

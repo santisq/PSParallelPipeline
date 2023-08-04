@@ -120,5 +120,19 @@
             }
 
         }
+
+        It 'Should throw if passing a scriptblock with using: scope modifier' {
+            {
+                $sb = { }
+                1..1 | Invoke-Parallel { $using:sb }
+            } | Should -Throw
+        }
+
+        It 'Should throw if passing a scriptblock with the -Variables parameter' {
+            {
+                $sb = { }
+                1..1 | Invoke-Parallel { $sb } -Variables @{ sb = $sb }
+            } | Should -Throw
+        }
     }
 }
