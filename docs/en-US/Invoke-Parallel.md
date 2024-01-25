@@ -34,7 +34,7 @@ This function is mostly intended for users of Windows PowerShell 5.1 though full
 
 ## EXAMPLES
 
-### EXAMPLE 1: Run slow script in parallel batches
+### Example 1: Run slow script in parallel batches
 
 ```powershell
 $message = 'Hello world from {0}'
