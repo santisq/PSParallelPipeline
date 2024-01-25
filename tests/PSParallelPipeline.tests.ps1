@@ -134,5 +134,11 @@
                 1..1 | Invoke-Parallel { $sb } -Variables @{ sb = $sb }
             } | Should -Throw
         }
+
+        It 'Allows indexing on using: statements' {
+            $arr = 0..10; $hash = @{ foo = 'bar' }
+            1 | Invoke-Parallel { $using:arr[-1] } | Should -BeExactly 10
+            1 | Invoke-Parallel { $using:hash['FOO'] } | Should -BeExactly 'bar'
+        }
     }
 }
