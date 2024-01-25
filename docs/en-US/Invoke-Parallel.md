@@ -192,7 +192,7 @@ Specifies the number of script blocks that are invoked in parallel.
 Input objects are blocked until the running script block count falls below the ThrottleLimit.
 
 > [!NOTE]
-> ThrottleLimit default value is `5`.
+> `-ThrottleLimit` default value is `5`.
 
 ```yaml
 Type: Int32
