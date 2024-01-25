@@ -1,7 +1,5 @@
 ﻿using namespace System.Management.Automation
-using namespace System.Management.Automation.Language
 using namespace System.Management.Automation.Runspaces
-using namespace System.Text
 
 # .ExternalHelp PSParallelPipeline-help.xml
 function Invoke-Parallel {
