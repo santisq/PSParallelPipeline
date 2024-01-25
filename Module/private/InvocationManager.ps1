@@ -2,6 +2,8 @@
 using namespace System.Diagnostics
 using namespace System.Management.Automation
 using namespace System.Management.Automation.Host
+using namespace System.Management.Automation.Language
+using namespace System.Text
 using namespace System.Threading
 
 class InvocationManager : IDisposable {
@@ -106,5 +108,43 @@ class InvocationManager : IDisposable {
         while ($runspace = $this.TryGet()) {
             $runspace.Dispose()
         }
+    }
+
+    static [hashtable] GetUsingStatements([scriptblock] $scriptblock, [PSCmdlet] $cmdlet) {
+        $usingParams = @{}
+        foreach ($usingstatement in $scriptblock.Ast.FindAll({ $args[0] -is [UsingExpressionAst] }, $true)) {
+            $variableAst = [UsingExpressionAst]::ExtractUsingVariable($usingstatement)
+            $varPath = $variableAst.VariablePath.UserPath
+            $varText = $usingstatement.ToString()
+
+            if ($usingstatement.SubExpression -is [VariableExpressionAst]) {
+                $varText = $varText.ToLowerInvariant()
+            }
+
+            $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText))
+
+            if ($usingParams.ContainsKey($key)) {
+                continue
+            }
+
+            $value = $cmdlet.SessionState.PSVariable.GetValue($varPath)
+
+            if ($value -is [scriptblock]) {
+                $cmdlet.ThrowTerminatingError([ErrorRecord]::new(
+                    [PSArgumentException]::new('Passed-in script block variables are not supported.'),
+                    'VariableCannotBeScriptBlock',
+                    [ErrorCategory]::InvalidType,
+                    $value))
+            }
+
+            if ($usingstatement.SubExpression -is [IndexExpressionAst]) {
+                $idx = $usingstatement.SubExpression.Index.SafeGetValue()
+                $value = $value[$idx]
+            }
+
+            $usingParams.Add($key, $value)
+        }
+
+        return $usingParams
     }
 }

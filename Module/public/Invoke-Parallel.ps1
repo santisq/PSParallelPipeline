@@ -36,6 +36,10 @@ function Invoke-Parallel {
     )
 
     begin {
+        $usingParams = [InvocationManager]::GetUsingStatements(
+            $ScriptBlock,
+            $PSCmdlet)
+
         try {
             $iss = [initialsessionstate]::CreateDefault2()
 
@@ -58,30 +62,6 @@ function Invoke-Parallel {
 
                 $iss.Commands.Add(
                     [SessionStateFunctionEntry]::new($function, $def.Definition))
-            }
-
-            $usingParams = @{}
-
-            # Thanks to mklement0 for catching up a bug here.
-            # https://github.com/mklement0
-            foreach ($usingstatement in $ScriptBlock.Ast.FindAll({ $args[0] -is [UsingExpressionAst] }, $true)) {
-                $varText = $usingstatement.Extent.Text
-                $varPath = $usingstatement.SubExpression.VariablePath.UserPath
-
-                $key = [Convert]::ToBase64String([Encoding]::Unicode.GetBytes($varText.ToLowerInvariant()))
-                if (-not $usingParams.ContainsKey($key)) {
-                    $value = $PSCmdlet.SessionState.PSVariable.GetValue($varPath)
-
-                    if ($value -is [scriptblock]) {
-                        $PSCmdlet.ThrowTerminatingError([ErrorRecord]::new(
-                            [PSArgumentException]::new('Passed-in script block variables are not supported.'),
-                            'VariableCannotBeScriptBlock',
-                            [ErrorCategory]::InvalidType,
-                            $value))
-                    }
-
-                    $usingParams.Add($key, $value)
-                }
             }
 
             $im = [InvocationManager]::new($ThrottleLimit, $Host, $iss, $UseNewRunspace.IsPresent)
