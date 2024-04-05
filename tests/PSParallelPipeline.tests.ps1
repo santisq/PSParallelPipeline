@@ -140,5 +140,15 @@
             1 | Invoke-Parallel { $using:arr[-1] } | Should -BeExactly 10
             1 | Invoke-Parallel { $using:hash['FOO'] } | Should -BeExactly 'bar'
         }
+
+        It 'Allows member accessing on using: statemets' {
+            $hash = @{
+                foo = @{
+                    bar = [pscustomobject]@{ Index = 0..10 }
+                }
+            }
+
+            1 | Invoke-Parallel { $using:hash['foo']['bar'].Index[5] } | Should -BeExactly 5
+        }
     }
 }
