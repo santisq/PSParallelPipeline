@@ -137,9 +137,25 @@ class InvocationManager : IDisposable {
                     $value))
             }
 
-            if ($usingstatement.SubExpression -is [IndexExpressionAst]) {
-                $idx = $usingstatement.SubExpression.Index.SafeGetValue()
-                $value = $value[$idx]
+            if ($usingstatement.SubExpression -isnot [VariableExpressionAst]) {
+                [Stack[Ast]] $subexpressionStack = $usingstatement.SubExpression.FindAll({
+                        $args[0] -is [IndexExpressionAst] -or
+                        $args[0] -is [MemberExpressionAst] },
+                    $false)
+
+                while ($subexpressionStack.Count) {
+                    $subexpression = $subexpressionStack.Pop()
+                    if ($subexpression -is [IndexExpressionAst]) {
+                        $idx = $subexpression.Index.SafeGetValue()
+                        $value = $value[$idx]
+                        continue
+                    }
+
+                    if ($subexpression -is [MemberExpressionAst]) {
+                        $member = $subexpression.Member.SafeGetValue()
+                        $value = $value.$member
+                    }
+                }
             }
 
             $usingParams.Add($key, $value)
