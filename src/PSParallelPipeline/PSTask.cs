@@ -9,22 +9,34 @@ namespace PSParallelPipeline;
 
 internal sealed class PSTask : IDisposable
 {
-    internal PowerShell _powershell;
+    private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _streams;
 
-    internal PSTask(
-        Runspace runspace,
-        PSOutputStreams outputStreams)
+    private PSOutputStreams _outputStreams;
+
+    [ThreadStatic]
+    private static Dictionary<string, object?>? _input;
+
+    private PSTask(Runspace runspace)
     {
         _powershell = PowerShell.Create();
         _powershell.Runspace = runspace;
         _streams = _powershell.Streams;
-        HookStreams(outputStreams);
+    }
+
+    static internal PSTask Create(
+        Runspace runspace,
+        PSOutputStreams outputStreams)
+    {
+        PSTask task = new(runspace);
+        task.HookStreams(outputStreams);
+        return task;
     }
 
     private void HookStreams(PSOutputStreams outputStreams)
     {
+        _outputStreams = outputStreams;
         _streams.Error = outputStreams.Error;
     }
 
@@ -35,19 +47,31 @@ internal sealed class PSTask : IDisposable
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    internal async Task InvokeAsync(
-        PSOutputStreams outputStreams,
-        CancellationToken cancellationToken,
-        ScriptBlock script,
-        Dictionary<string, object> parameters)
+    internal PSTask AddInputObject(object? inputObject)
     {
+        _input ??= new Dictionary<string, object?>
+        {
+            { "Name", "_" },
+        };
+
+        _input["Value"] = inputObject;
         _powershell
             .AddCommand("Set-Variable", useLocalScope: true)
-            .AddParameters(parameters)
-            .AddScript(script.ToString(), useLocalScope: true);
+            .AddParameters(_input);
+        return this;
+    }
 
+    internal PSTask AddScript(ScriptBlock script)
+    {
+        _powershell.AddScript(script.ToString(), useLocalScope: true);
+        return this;
+    }
+
+
+    internal async Task InvokeAsync(CancellationToken cancellationToken)
+    {
         using CancellationTokenRegistration _ = cancellationToken.Register(CancelCallback(this));
-        await InvokePowerShellAsync(_powershell, outputStreams.Success);
+        await InvokePowerShellAsync(_powershell, _outputStreams.Success);
         Dispose();
     }
 

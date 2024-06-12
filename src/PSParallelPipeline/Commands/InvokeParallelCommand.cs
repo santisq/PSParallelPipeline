@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Collections.Concurrent;
+using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
@@ -14,7 +15,7 @@ public sealed class TestCommand : PSCmdlet, IDisposable
     public ScriptBlock ScriptBlock { get; set; } = null!;
 
     [Parameter(ValueFromPipeline = true)]
-    public object InputObject { get; set; } = null!;
+    public object? InputObject { get; set; } = null!;
 
     [Parameter]
     [ValidateRange(1, int.MaxValue)]
@@ -28,16 +29,11 @@ public sealed class TestCommand : PSCmdlet, IDisposable
 
     private readonly CancellationTokenSource _cts = new();
 
-    private readonly PSDataCollection<PSObject> _taskOutput = new();
+    private readonly BlockingCollection<PSTask> _taskQueue = new();
 
-    private readonly BlockingCollection<PowerShell> _taskQueue = new();
+    private PSOutputStreams? _outputStreams;
 
     private Task? _worker;
-
-    private Dictionary<string, object> _params = new()
-    {
-        { "Name", "_" },
-    };
 
     protected override void BeginProcessing()
     {
@@ -46,13 +42,15 @@ public sealed class TestCommand : PSCmdlet, IDisposable
             _cts.CancelAfter(TimeSpan.FromSeconds(TimeOutSeconds));
         }
 
+        _outputStreams = new PSOutputStreams(_outputPipe);
+
         _worker = Task.Run(async () =>
         {
             List<Task> tasks = new();
 
             while (!_taskQueue.IsCompleted)
             {
-                if (!_taskQueue.TryTake(out PowerShell ps, 50, _cts.Token))
+                if (!_taskQueue.TryTake(out PSTask ps, 50, _cts.Token))
                 {
                     continue;
                 }
@@ -62,7 +60,7 @@ public sealed class TestCommand : PSCmdlet, IDisposable
                     await ProcessTask(tasks);
                 }
 
-                tasks.Add(InvokeAsync(ps, _taskOutput, _cts.Token));
+                tasks.Add(ps.InvokeAsync(_cts.Token));
             }
 
             while (tasks is { Count: > 0 })
@@ -102,36 +100,17 @@ public sealed class TestCommand : PSCmdlet, IDisposable
 
     protected override void ProcessRecord()
     {
-        _params["Value"] = InputObject;
-
-        PowerShell ps = PowerShell
-            .Create(RunspaceMode.NewRunspace)
-            .AddCommand("Set-Variable", useLocalScope: true)
-            .AddParameters(new Dictionary<string, object>
-            {
-                { "Name", "_" },
-                { "Value", InputObject }
-            })
-            .AddScript(ScriptBlock.ToString(), useLocalScope: true);
-
-        _taskOutput.DataAdded += (s, e) =>
+        if (_outputStreams is null)
         {
-            foreach (var data in _taskOutput.ReadAll())
-            {
-                _outputPipe.Add(new PSOutputData { Type = Type.Success, Output = data });
-            }
-        };
+            return;
+        }
 
-        PSDataStreams streams = ps.Streams;
-        streams.Error.DataAdded += (s, e) =>
-        {
-            foreach (ErrorRecord error in streams.Error.ReadAll())
-            {
-                _outputPipe.Add(new PSOutputData { Type = Type.Error, Output = error });
-            }
-        };
+        PSTask _task = PSTask
+            .Create(RunspaceFactory.CreateRunspace(), _outputStreams)
+            .AddInputObject(InputObject)
+            .AddScript(ScriptBlock);
 
-        _taskQueue.Add(ps);
+        _taskQueue.Add(_task);
 
         try
         {
@@ -205,30 +184,12 @@ public sealed class TestCommand : PSCmdlet, IDisposable
 
     protected override void StopProcessing() => _cts.Cancel();
 
-    private Task InvokePowerShellAsync(
-        PowerShell powerShell,
-        PSDataCollection<PSObject> output) =>
-        Task.Factory.FromAsync(
-            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
-            powerShell.EndInvoke);
-
-    private async Task InvokeAsync(
-        PowerShell powerShell,
-        PSDataCollection<PSObject> output,
-        CancellationToken cancellationToken)
-    {
-        using CancellationTokenRegistration _ = cancellationToken.Register(() =>
-            powerShell.BeginStop(powerShell.EndStop, null));
-        await InvokePowerShellAsync(powerShell, output);
-        powerShell.Dispose();
-    }
-
     public void Dispose()
     {
         _outputPipe.Dispose();
         _taskQueue.Dispose();
         _cts.Dispose();
         _worker?.Dispose();
-        _taskOutput.Dispose();
+        _outputStreams?.Dispose();
     }
 }
