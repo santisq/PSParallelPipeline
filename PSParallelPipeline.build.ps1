@@ -33,7 +33,6 @@ task Clean {
     if (Test-Path $ReleasePath) {
         Remove-Item $ReleasePath -Recurse -Force
     }
-
     New-Item -ItemType Directory $ReleasePath | Out-Null
 }
 
@@ -200,4 +199,4 @@ task DoTest {
 
 task Build -Jobs Clean, BuildManaged, CopyToRelease, BuildDocs, Package
 task Test -Jobs BuildManaged, Analyze, DoUnitTest, DoTest
-task . Build
+# task . Build

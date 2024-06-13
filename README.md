@@ -1,12 +1,7 @@
 <h1 align="center">PSParallelPipeline</h1>
-
-</div>
-
 <div align="center">
-    <sub>
-        Parallel processing of pipeline input objects!
-    </sub>
-    <br /><br />
+<sub>Parallel processing of pipeline input objects!</sub>
+<br /><br />
 
 [![build](https://github.com/santisq/PSParallelPipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/santisq/PSParallelPipeline/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/santisq/PSParallelPipeline/branch/main/graph/badge.svg?token=b51IOhpLfQ)](https://codecov.io/gh/santisq/PSParallelPipeline)

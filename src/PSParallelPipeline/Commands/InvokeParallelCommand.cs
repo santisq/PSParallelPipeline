@@ -192,7 +192,6 @@ public sealed class TestCommand : PSCmdlet, IDisposable
         _outputPipe.Dispose();
         _taskQueue.Dispose();
         _cts.Dispose();
-        _worker?.Dispose();
         _outputStreams?.Dispose();
     }
 }
