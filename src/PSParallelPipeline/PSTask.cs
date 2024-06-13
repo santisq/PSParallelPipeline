@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Management.Automation;
+using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
@@ -36,6 +37,12 @@ internal sealed class PSTask : IDisposable
         _outputStreams = outputStreams;
         _streams.Error = outputStreams.Error;
     }
+
+    internal void SetRunspace(Runspace runspace) =>
+        _powershell.Runspace = runspace;
+
+    internal Runspace ReleaseRunspace() =>
+        _powershell.Runspace;
 
     private static Task InvokePowerShellAsync(
         PowerShell powerShell,
