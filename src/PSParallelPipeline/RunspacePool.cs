@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading.Tasks;
 
@@ -53,7 +52,7 @@ internal sealed class RunspacePool : IDisposable
 
         if (_totalMade == _maxRunspaces)
         {
-            await ProcessTask();
+            await ProcessTaskAsync();
             return _runspacePool.Pop();
         }
 
@@ -67,11 +66,11 @@ internal sealed class RunspacePool : IDisposable
     {
         while (_tasks.Count > 0)
         {
-            await ProcessTask();
+            await ProcessTaskAsync();
         }
     }
 
-    private async Task ProcessTask()
+    private async Task ProcessTaskAsync()
     {
         try
         {

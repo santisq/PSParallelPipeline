@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.Management.Automation;
 using System.Collections.Concurrent;
 using System.Management.Automation.Runspaces;
@@ -38,8 +37,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     private Task? _worker;
 
-    private RunspacePool? _rspool;
-
     protected override void BeginProcessing()
     {
         if (TimeOutSeconds > 0)
@@ -53,7 +50,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             InitialSessionState iss = InitialSessionState.CreateDefault2();
 
-            _rspool = new(
+            using RunspacePool rspool = new(
                 maxRunspaces: ThrottleLimit,
                 useNewRunspace: UseNewRunspace,
                 initialSessionState: iss,
@@ -66,14 +63,14 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                     continue;
                 }
 
-                Runspace rs = await _rspool.GetRunspaceAsync();
+                Runspace rs = await rspool.GetRunspaceAsync();
                 ps.SetRunspace(rs);
-                _rspool.Enqueue(ps.InvokeAsync(_cts.Token));
+                rspool.Enqueue(ps.InvokeAsync(_cts.Token));
             }
 
-            await _rspool.ProcessTasksAsync();
+            await rspool.ProcessTasksAsync();
             _outputPipe.CompleteAdding();
-        });
+        }, _cts.Token);
     }
 
     protected override void ProcessRecord()
@@ -160,6 +157,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         _taskQueue.Dispose();
         _cts.Dispose();
         _outputStreams?.Dispose();
-        _rspool?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
