@@ -22,13 +22,13 @@ internal static class ExceptionHelpers
 
     internal static PSOutputData CreateProcessingTaskError(
         this Exception exception,
-        PSCmdlet cmdlet) => new()
+        object context) => new()
         {
             Type = Type.Error,
             Output = new ErrorRecord(
                 exception,
                 "ProcessingTask",
                 ErrorCategory.NotSpecified,
-                cmdlet)
+                context)
         };
 }

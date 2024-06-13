@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Collections.Concurrent;
+using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
@@ -24,6 +25,9 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     [ValidateRange(0, int.MaxValue)]
     public int TimeOutSeconds { get; set; }
 
+    [Parameter]
+    public SwitchParameter UseNewRunspace { get; set; }
+
     private readonly BlockingCollection<PSOutputData> _outputPipe = new();
 
     private readonly CancellationTokenSource _cts = new();
@@ -33,6 +37,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     private PSOutputStreams? _outputStreams;
 
     private Task? _worker;
+
+    private RunspacePool? _rspool;
 
     protected override void BeginProcessing()
     {
@@ -45,7 +51,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
         _worker = Task.Run(async () =>
         {
-            List<Task> tasks = new();
+            InitialSessionState iss = InitialSessionState.CreateDefault2();
+
+            _rspool = new(
+                maxRunspaces: ThrottleLimit,
+                useNewRunspace: UseNewRunspace,
+                initialSessionState: iss,
+                outputPipe: _outputPipe);
 
             while (!_taskQueue.IsCompleted)
             {
@@ -54,39 +66,14 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                     continue;
                 }
 
-                if (tasks.Count == ThrottleLimit)
-                {
-                    await ProcessTask(tasks);
-                }
-
-                tasks.Add(ps.InvokeAsync(_cts.Token));
+                Runspace rs = await _rspool.GetRunspaceAsync();
+                ps.SetRunspace(rs);
+                _rspool.Enqueue(ps.InvokeAsync(_cts.Token));
             }
 
-            while (tasks is { Count: > 0 })
-            {
-                await ProcessTask(tasks);
-            }
-
+            await _rspool.ProcessTasksAsync();
             _outputPipe.CompleteAdding();
         });
-    }
-
-    private async Task ProcessTask(List<Task> tasks)
-    {
-        try
-        {
-            Task task = await Task.WhenAny(tasks);
-            tasks.Remove(task);
-            await task;
-        }
-        catch (Exception _) when (_ is TaskCanceledException or OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            _outputPipe.Add(exception.CreateProcessingTaskError(this));
-        }
     }
 
     protected override void ProcessRecord()
@@ -173,5 +160,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         _taskQueue.Dispose();
         _cts.Dispose();
         _outputStreams?.Dispose();
+        _rspool?.Dispose();
     }
 }
