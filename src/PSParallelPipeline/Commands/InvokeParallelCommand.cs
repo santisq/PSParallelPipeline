@@ -107,12 +107,16 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             while (_outputPipe.TryTake(out PSOutputData data, 0, _cts.Token))
             {
-                ProcessOutput(data.Type, data.Output);
+                ProcessOutput(data);
             }
         }
         catch (OperationCanceledException exception)
         {
             exception.WriteTimeoutError(this);
+        }
+        catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
+        {
+            throw;
         }
         catch (Exception exception)
         {
@@ -126,9 +130,9 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
         try
         {
-            foreach ((Type type, object i) in _outputPipe.GetConsumingEnumerable(_cts.Token))
+            foreach (PSOutputData data in _outputPipe.GetConsumingEnumerable(_cts.Token))
             {
-                ProcessOutput(type, i);
+                ProcessOutput(data);
             }
 
             _worker?.GetAwaiter().GetResult();
@@ -137,22 +141,26 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             exception.WriteTimeoutError(this);
         }
+        catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             exception.WriteEndProcessingError(this);
         }
     }
 
-    private void ProcessOutput(Type type, object i)
+    private void ProcessOutput(PSOutputData data)
     {
-        switch (type)
+        switch (data.Type)
         {
             case Type.Success:
-                WriteObject(i);
+                WriteObject(data.Output);
                 break;
 
             case Type.Error:
-                WriteError((ErrorRecord)i);
+                WriteError((ErrorRecord)data.Output);
                 break;
         }
     }
