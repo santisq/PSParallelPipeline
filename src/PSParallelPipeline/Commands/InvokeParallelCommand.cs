@@ -4,12 +4,11 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Collections.Concurrent;
-using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
-public sealed class TestCommand : PSCmdlet, IDisposable
+public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {
     [Parameter(Position = 0)]
     public ScriptBlock ScriptBlock { get; set; } = null!;
@@ -80,21 +79,13 @@ public sealed class TestCommand : PSCmdlet, IDisposable
             tasks.Remove(task);
             await task;
         }
-        catch (Exception exception) when (exception is TaskCanceledException or OperationCanceledException)
+        catch (Exception _) when (_ is TaskCanceledException or OperationCanceledException)
         {
             throw;
         }
         catch (Exception exception)
         {
-            _outputPipe.Add(new PSOutputData
-            {
-                Type = Type.Error,
-                Output = new ErrorRecord(
-                    exception,
-                    "ProcessingTask",
-                    ErrorCategory.NotSpecified,
-                    this)
-            });
+            _outputPipe.Add(exception.CreateProcessingTaskError(this));
         }
     }
 
@@ -105,11 +96,8 @@ public sealed class TestCommand : PSCmdlet, IDisposable
             return;
         }
 
-        Runspace runspace = RunspaceFactory.CreateRunspace();
-        runspace.Open();
-
         PSTask _task = PSTask
-            .Create(runspace, _outputStreams)
+            .Create(_outputStreams)
             .AddInputObject(InputObject)
             .AddScript(ScriptBlock);
 
@@ -122,21 +110,13 @@ public sealed class TestCommand : PSCmdlet, IDisposable
                 ProcessOutput(data.Type, data.Output);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
-            WriteError(new ErrorRecord(
-                new TimeoutException("Timeout has been reached."),
-                "TimeOutReached",
-                ErrorCategory.OperationTimeout,
-                this));
+            exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
         {
-            WriteError(new ErrorRecord(
-                exception,
-                "ProcessingOutput",
-                ErrorCategory.NotSpecified,
-                this));
+            exception.WriteProcessOutputError(this);
         }
     }
 
@@ -153,21 +133,13 @@ public sealed class TestCommand : PSCmdlet, IDisposable
 
             _worker?.GetAwaiter().GetResult();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
-            WriteError(new ErrorRecord(
-                new TimeoutException("Timeout has been reached."),
-                "TimeOutReached",
-                ErrorCategory.OperationTimeout,
-                this));
+            exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
         {
-            WriteError(new ErrorRecord(
-                exception,
-                "EndProcessingOutput",
-                ErrorCategory.NotSpecified,
-                this));
+            exception.WriteEndProcessingError(this);
         }
     }
 

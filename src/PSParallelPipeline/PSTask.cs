@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Management.Automation;
-using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
@@ -18,21 +17,16 @@ internal sealed class PSTask : IDisposable
     [ThreadStatic]
     private static Dictionary<string, object?>? _input;
 
-    private PSTask(
-        Runspace runspace,
-        PSOutputStreams outputStreams)
+    private PSTask(PSOutputStreams outputStreams)
     {
         _powershell = PowerShell.Create();
-        _powershell.Runspace = runspace;
         _streams = _powershell.Streams;
         _outputStreams = outputStreams;
     }
 
-    static internal PSTask Create(
-        Runspace runspace,
-        PSOutputStreams outputStreams)
+    static internal PSTask Create(PSOutputStreams outputStreams)
     {
-        PSTask task = new(runspace, outputStreams);
+        PSTask task = new(outputStreams);
         task.HookStreams(outputStreams);
         return task;
     }

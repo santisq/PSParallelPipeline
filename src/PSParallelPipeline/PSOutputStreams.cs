@@ -24,7 +24,7 @@ internal sealed class PSOutputStreams : IDisposable
         {
             foreach (PSObject data in Success.ReadAll())
             {
-                _outputPipe.Add(new PSOutputData { Type = Type.Success, Output = data });
+                _outputPipe.Add(new() { Type = Type.Success, Output = data });
             }
         };
 
@@ -32,7 +32,7 @@ internal sealed class PSOutputStreams : IDisposable
         {
             foreach (ErrorRecord error in Error.ReadAll())
             {
-                _outputPipe.Add(new PSOutputData { Type = Type.Error, Output = error });
+                _outputPipe.Add(new() { Type = Type.Error, Output = error });
             }
         };
     }
