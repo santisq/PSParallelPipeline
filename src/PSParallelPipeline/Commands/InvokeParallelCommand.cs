@@ -105,8 +105,11 @@ public sealed class TestCommand : PSCmdlet, IDisposable
             return;
         }
 
+        Runspace runspace = RunspaceFactory.CreateRunspace();
+        runspace.Open();
+
         PSTask _task = PSTask
-            .Create(RunspaceFactory.CreateRunspace(), _outputStreams)
+            .Create(runspace, _outputStreams)
             .AddInputObject(InputObject)
             .AddScript(ScriptBlock);
 

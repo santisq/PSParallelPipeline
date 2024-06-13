@@ -18,18 +18,21 @@ internal sealed class PSTask : IDisposable
     [ThreadStatic]
     private static Dictionary<string, object?>? _input;
 
-    private PSTask(Runspace runspace)
+    private PSTask(
+        Runspace runspace,
+        PSOutputStreams outputStreams)
     {
         _powershell = PowerShell.Create();
         _powershell.Runspace = runspace;
         _streams = _powershell.Streams;
+        _outputStreams = outputStreams;
     }
 
     static internal PSTask Create(
         Runspace runspace,
         PSOutputStreams outputStreams)
     {
-        PSTask task = new(runspace);
+        PSTask task = new(runspace, outputStreams);
         task.HookStreams(outputStreams);
         return task;
     }
