@@ -1,91 +1,100 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Management.Automation.Runspaces;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
-    private readonly int _maxRunspaces;
+    internal PSOutputStreams PSOutputStreams { get => _woker.OutputStreams; }
 
-    private readonly bool _useNewRunspace;
+    private CancellationToken Token { get => _woker.Token; }
+
+    private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
+
+    private int MaxRunspaces { get => _settings.MaxRunspaces; }
+
+    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     private int _totalMade;
 
-    private readonly InitialSessionState _iss;
-
-    private readonly Stack<Runspace> _runspacePool;
+    private readonly Queue<Runspace> _pool;
 
     private readonly List<Task<PSTask>> _tasks;
 
-    private readonly BlockingCollection<PSOutputData> _outputPipe;
+    private readonly PoolSettings _settings;
 
-    internal RunspacePool(
-        int maxRunspaces,
-        bool useNewRunspace,
-        InitialSessionState initialSessionState,
-        BlockingCollection<PSOutputData> outputPipe)
+    private readonly Worker _woker;
+
+    internal RunspacePool(PoolSettings settings, Worker worker)
     {
-        _maxRunspaces = maxRunspaces;
-        _useNewRunspace = useNewRunspace;
-        _iss = initialSessionState;
-        _outputPipe = outputPipe;
-        _runspacePool = new(_maxRunspaces);
-        _tasks = new(_maxRunspaces);
+        _settings = settings;
+        _woker = worker;
+        _pool = new Queue<Runspace>(MaxRunspaces);
+        _tasks = new List<Task<PSTask>>(MaxRunspaces);
     }
 
     private Runspace CreateRunspace()
     {
-        Runspace rs = RunspaceFactory.CreateRunspace(_iss);
+        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
         rs.Open();
         return rs;
     }
 
-    internal async Task<Runspace> GetRunspaceAsync()
+    private async Task<Runspace> GetRunspaceAsync()
     {
-        if (_runspacePool.Count > 0)
+        if (_pool.Count > 0)
         {
-            return _runspacePool.Pop();
+            return _pool.Dequeue();
         }
 
-        if (_totalMade == _maxRunspaces)
+        if (_totalMade == MaxRunspaces)
         {
             await ProcessTaskAsync();
-            return _runspacePool.Pop();
+            Token.ThrowIfCancellationRequested();
+            return _pool.Dequeue();
         }
 
         _totalMade++;
         return CreateRunspace();
     }
 
-    internal void Enqueue(Task<PSTask> task) => _tasks.Add(task);
-
     internal async Task ProcessTasksAsync()
     {
         while (_tasks.Count > 0)
         {
             await ProcessTaskAsync();
+            Token.ThrowIfCancellationRequested();
         }
+    }
+
+    internal async Task EnqueueAsync(PSTask task)
+    {
+        task.Runspace = await GetRunspaceAsync();
+        _tasks.Add(task.InvokeAsync());
     }
 
     private async Task ProcessTaskAsync()
     {
+        PSTask? ps = null;
+
         try
         {
-            Task<PSTask> waitTask = await Task.WhenAny(_tasks);
-            _tasks.Remove(waitTask);
-            PSTask psTask = await waitTask;
-            Runspace runspace = psTask.ReleaseRunspace();
+            Token.ThrowIfCancellationRequested();
+            Task<PSTask> awaiter = await Task.WhenAny(_tasks);
+            _tasks.Remove(awaiter);
+            ps = await awaiter;
+            Runspace runspace = ps.Runspace;
 
-            if (_useNewRunspace)
+            if (UseNewRunspace)
             {
-                runspace.Dispose();
+                ps.Runspace.Dispose();
                 runspace = CreateRunspace();
             }
 
-            _runspacePool.Push(runspace);
+            _pool.Enqueue(runspace);
         }
         catch (Exception _) when (_ is TaskCanceledException or OperationCanceledException)
         {
@@ -93,13 +102,20 @@ internal sealed class RunspacePool : IDisposable
         }
         catch (Exception exception)
         {
-            _outputPipe.Add(exception.CreateProcessingTaskError(this));
+            PSOutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+        }
+        finally
+        {
+            ps?.Dispose();
         }
     }
 
+    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
+        Token.Register(callback);
+
     public void Dispose()
     {
-        foreach (Runspace runspace in _runspacePool)
+        foreach (Runspace runspace in _pool)
         {
             runspace.Dispose();
         }

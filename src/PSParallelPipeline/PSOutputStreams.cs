@@ -1,22 +1,29 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Management.Automation;
+using System.Threading;
 
 namespace PSParallelPipeline;
 
 internal sealed class PSOutputStreams : IDisposable
 {
+    private BlockingCollection<PSOutputData> OutputPipe { get => _worker.OutputPipe; }
+
+    private CancellationToken Token { get => _worker.Token; }
+
     internal PSDataCollection<PSObject> Success { get; } = new();
 
     internal PSDataCollection<ErrorRecord> Error { get; } = new();
 
-    private readonly BlockingCollection<PSOutputData> _outputPipe;
+    private readonly Worker _worker;
 
-    internal PSOutputStreams(BlockingCollection<PSOutputData> outputPipe)
+    internal PSOutputStreams(Worker worker)
     {
-        _outputPipe = outputPipe;
+        _worker = worker;
         SetStreams();
     }
+
+    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data, Token);
 
     internal void SetStreams()
     {
@@ -24,7 +31,7 @@ internal sealed class PSOutputStreams : IDisposable
         {
             foreach (PSObject data in Success.ReadAll())
             {
-                _outputPipe.Add(new() { Type = Type.Success, Output = data });
+                AddOutput(new PSOutputData(Type.Success, data));
             }
         };
 
@@ -32,7 +39,7 @@ internal sealed class PSOutputStreams : IDisposable
         {
             foreach (ErrorRecord error in Error.ReadAll())
             {
-                _outputPipe.Add(new() { Type = Type.Error, Output = error });
+                AddOutput(new PSOutputData(Type.Error, error));
             }
         };
     }
@@ -41,7 +48,7 @@ internal sealed class PSOutputStreams : IDisposable
     {
         Success.Dispose();
         Error.Dispose();
-        _outputPipe.Dispose();
+        OutputPipe.Dispose();
         GC.SuppressFinalize(this);
     }
 }

@@ -9,40 +9,41 @@ namespace PSParallelPipeline;
 
 internal sealed class PSTask : IDisposable
 {
+    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
+
+    internal Runspace Runspace
+    {
+        get => _powershell.Runspace;
+        set => _powershell.Runspace = value;
+    }
+
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _streams;
 
-    private PSOutputStreams _outputStreams;
+    private readonly RunspacePool _pool;
 
     [ThreadStatic]
     private static Dictionary<string, object?>? _input;
 
-    private PSTask(PSOutputStreams outputStreams)
+    private PSTask(RunspacePool runspacePool)
     {
         _powershell = PowerShell.Create();
         _streams = _powershell.Streams;
-        _outputStreams = outputStreams;
+        _pool = runspacePool;
     }
 
-    static internal PSTask Create(PSOutputStreams outputStreams)
+    static internal PSTask Create(RunspacePool runspacePool)
     {
-        PSTask task = new(outputStreams);
-        task.HookStreams(outputStreams);
-        return task;
+        PSTask ps = new(runspacePool);
+        ps.HookStreams(runspacePool.PSOutputStreams);
+        return ps;
     }
 
     private void HookStreams(PSOutputStreams outputStreams)
     {
-        _outputStreams = outputStreams;
         _streams.Error = outputStreams.Error;
     }
-
-    internal void SetRunspace(Runspace runspace) =>
-        _powershell.Runspace = runspace;
-
-    internal Runspace ReleaseRunspace() =>
-        _powershell.Runspace;
 
     private static Task InvokePowerShellAsync(
         PowerShell powerShell,
@@ -71,18 +72,21 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-
-    internal async Task<PSTask> InvokeAsync(CancellationToken cancellationToken)
+    internal async Task<PSTask> InvokeAsync()
     {
-        using CancellationTokenRegistration _ = cancellationToken.Register(CancelCallback(this));
-        await InvokePowerShellAsync(_powershell, _outputStreams.Success);
-        Dispose();
+        using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
+        await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         return this;
     }
 
     private static Action CancelCallback(PSTask task) => delegate
     {
-        task._powershell.BeginStop(task._powershell.EndStop, null);
+        task._powershell.BeginStop((e) =>
+        {
+            task._powershell.EndStop(e);
+            task.Runspace.Dispose();
+            // task.Dispose();
+        }, null);
     };
 
     public void Dispose()
