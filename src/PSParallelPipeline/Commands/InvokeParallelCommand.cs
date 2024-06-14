@@ -52,6 +52,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             return;
         }
 
+        this.ThrowIfInputObjectIsScriptblock(InputObject);
+
         try
         {
             _worker.Enqueue(InputObject, ScriptBlock);
