@@ -23,9 +23,6 @@ internal sealed class PSTask : IDisposable
 
     private readonly RunspacePool _pool;
 
-    [ThreadStatic]
-    private static Dictionary<string, object?>? _input;
-
     private PSTask(RunspacePool runspacePool)
     {
         _powershell = PowerShell.Create();
@@ -52,23 +49,35 @@ internal sealed class PSTask : IDisposable
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    internal PSTask AddInputObject(object? inputObject)
+    internal PSTask AddInputObject(Dictionary<string, object?> inputObject)
     {
-        _input ??= new Dictionary<string, object?>
-        {
-            { "Name", "_" },
-        };
-
-        _input["Value"] = inputObject;
         _powershell
             .AddCommand("Set-Variable", useLocalScope: true)
-            .AddParameters(_input);
+            .AddParameters(inputObject);
         return this;
     }
 
     internal PSTask AddScript(ScriptBlock script)
     {
         _powershell.AddScript(script.ToString(), useLocalScope: true);
+        return this;
+    }
+
+    internal PSTask AddUsingStatements(Dictionary<string, object?>? usingParams)
+    {
+        if (usingParams is { Count: > 0 })
+        {
+            // _usingParams ??= new Dictionary<string, Dictionary<string, object?>>
+            // {
+            //     { "--%", usingParams }
+            // };
+
+            _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
+            {
+                { "--%", usingParams }
+            });
+        }
+
         return this;
     }
 

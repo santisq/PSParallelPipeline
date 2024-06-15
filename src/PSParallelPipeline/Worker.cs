@@ -23,6 +23,11 @@ internal sealed class Worker : IDisposable
 
     private Task? _worker;
 
+    private readonly Dictionary<string, object?> _inputObject = new()
+    {
+        { "Name", "_" },
+    };
+
     internal Worker(PoolSettings settings)
     {
         _cts = new CancellationTokenSource();
@@ -36,13 +41,16 @@ internal sealed class Worker : IDisposable
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
 
-    internal void Enqueue(object? input, ScriptBlock script) =>
+    internal void Enqueue(object? input, ScriptBlock script)
+    {
+        _inputObject["Value"] = input;
         _inputQueue.Add(
             item: PSTask
                 .Create(_runspacePool)
-                .AddInputObject(input)
+                .AddInputObject(_inputObject)
                 .AddScript(script),
             cancellationToken: Token);
+    }
 
     internal bool TryTake(out PSOutputData output) =>
         OutputPipe.TryTake(out output, 0, Token);

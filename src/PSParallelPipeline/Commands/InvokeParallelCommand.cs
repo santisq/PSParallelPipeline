@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 
@@ -32,7 +33,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             MaxRunspaces = ThrottleLimit,
             UseNewRunspace = UseNewRunspace,
-            InitialSessionState = InitialSessionState.CreateDefault2()
+            InitialSessionState = InitialSessionState.CreateDefault2(),
+            UsingStatements = ScriptBlock.GetUsingParameters(this)
         };
 
         _worker = new Worker(poolSettings);

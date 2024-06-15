@@ -18,6 +18,8 @@ internal sealed class RunspacePool : IDisposable
 
     private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
+    private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
+
     private int _totalMade;
 
     private readonly Queue<Runspace> _pool;
@@ -72,6 +74,11 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task EnqueueAsync(PSTask task)
     {
+        if (UsingStatements is { Count: > 0 })
+        {
+            task.AddUsingStatements(UsingStatements);
+        }
+
         task.Runspace = await GetRunspaceAsync();
         _tasks.Add(task.InvokeAsync());
     }
