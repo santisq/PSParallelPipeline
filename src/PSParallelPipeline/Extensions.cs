@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Management.Automation.Language;
@@ -31,6 +32,21 @@ internal static class Extensions
         }
     }
 
+    internal static void AddVariables(
+        this PSCmdlet cmdlet,
+        Hashtable variables,
+        InitialSessionState initialSessionState)
+    {
+        foreach (DictionaryEntry pair in variables)
+        {
+            cmdlet.ThrowIfUsingValueIsScriptBlock(pair.Value);
+            initialSessionState.Variables.Add(new SessionStateVariableEntry(
+                name: LanguagePrimitives.ConvertTo<string>(pair.Key),
+                value: pair.Value,
+                description: null));
+        }
+    }
+
     internal static Dictionary<string, object?> GetUsingParameters(
         this ScriptBlock script,
         PSCmdlet cmdlet)
@@ -50,7 +66,7 @@ internal static class Extensions
 
             string key = Convert.ToBase64String(Encoding.Unicode.GetBytes(varText));
             object? value = cmdlet.GetVariableValue(varPath);
-            cmdlet.ThrowIfUsingValueIsScriptblock(value);
+            cmdlet.ThrowIfUsingValueIsScriptBlock(value);
 
             if (usingParams.ContainsKey(key))
             {
@@ -60,7 +76,7 @@ internal static class Extensions
             if (usingStatement.SubExpression is MemberExpressionAst or IndexExpressionAst)
             {
                 value = ExtractUsingExpressionValue(value, usingStatement.SubExpression);
-                cmdlet.ThrowIfUsingValueIsScriptblock(value);
+                cmdlet.ThrowIfUsingValueIsScriptBlock(value);
             }
 
             usingParams.Add(key, value);

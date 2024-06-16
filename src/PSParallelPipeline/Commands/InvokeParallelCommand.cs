@@ -25,12 +25,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     [Parameter]
     [ValidateNotNullOrEmpty]
-    public IDictionary? Variables { get; set; }
+    public Hashtable? Variable { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
     [ArgumentCompleter(typeof(CommandCompleter))]
-    public string[]? Functions { get; set; }
+    public string[]? Function { get; set; }
 
     [Parameter]
     public SwitchParameter UseNewRunspace { get; set; }
@@ -41,11 +41,15 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     {
         InitialSessionState iss = InitialSessionState.CreateDefault2();
 
-        if (Functions is not null)
+        if (Function is not null)
         {
-            this.AddFunctions(Functions, iss);
+            this.AddFunctions(Function, iss);
         }
 
+        if (Variable is not null)
+        {
+            this.AddVariables(Variable, iss);
+        }
 
         PoolSettings poolSettings = new()
         {
@@ -72,7 +76,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             return;
         }
 
-        this.ThrowIfInputObjectIsScriptblock(InputObject);
+        this.ThrowIfInputObjectIsScriptBlock(InputObject);
 
         try
         {

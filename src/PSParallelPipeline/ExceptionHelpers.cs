@@ -35,9 +35,26 @@ internal static class ExceptionHelpers
                 context)
         };
 
-    internal static void ThrowIfInputObjectIsScriptblock(this PSCmdlet cmdlet, object? input)
+    private static bool ValueIsNotScriptBlock(object? value) =>
+        value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };
+
+    internal static void ThrowIfVariableIsScriptBlock(this PSCmdlet cmdlet, object? value)
     {
-        if (input is not ScriptBlock and not PSObject { BaseObject: ScriptBlock })
+        if (ValueIsNotScriptBlock(value))
+        {
+            return;
+        }
+
+        cmdlet.ThrowTerminatingError(new ErrorRecord(
+            new PSArgumentException(_notsupported),
+            "PassedInVariableCannotBeScriptBlock",
+            ErrorCategory.InvalidType,
+            value));
+    }
+
+    internal static void ThrowIfInputObjectIsScriptBlock(this PSCmdlet cmdlet, object? value)
+    {
+        if (ValueIsNotScriptBlock(value))
         {
             return;
         }
@@ -49,12 +66,12 @@ internal static class ExceptionHelpers
                     _notsupported)),
                 "InputObjectCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
-                cmdlet));
+                value));
     }
 
-    internal static void ThrowIfUsingValueIsScriptblock(this PSCmdlet cmdlet, object? value)
+    internal static void ThrowIfUsingValueIsScriptBlock(this PSCmdlet cmdlet, object? value)
     {
-        if (value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock })
+        if (ValueIsNotScriptBlock(value))
         {
             return;
         }
@@ -64,8 +81,8 @@ internal static class ExceptionHelpers
                 string.Concat(
                     "A $using: variable cannot be a script block. ",
                     _notsupported)),
-                "InputObjectCannotBeScriptBlock",
+                "UsingVariableCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
-                cmdlet));
+                value));
     }
 }
