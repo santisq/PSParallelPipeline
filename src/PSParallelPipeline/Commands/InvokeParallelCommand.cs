@@ -39,16 +39,19 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     protected override void BeginProcessing()
     {
-        // foreach (string function in Functions)
-        // {
+        InitialSessionState iss = InitialSessionState.CreateDefault2();
 
-        // }
+        if (Functions is not null)
+        {
+            this.AddFunctions(Functions, iss);
+        }
+
 
         PoolSettings poolSettings = new()
         {
             MaxRunspaces = ThrottleLimit,
             UseNewRunspace = UseNewRunspace,
-            InitialSessionState = InitialSessionState.CreateDefault2(),
+            InitialSessionState = iss,
             UsingStatements = ScriptBlock.GetUsingParameters(this)
         };
 

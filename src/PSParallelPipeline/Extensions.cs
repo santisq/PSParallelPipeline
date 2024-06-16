@@ -2,12 +2,35 @@ using System;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Management.Automation.Language;
+using System.Management.Automation.Runspaces;
 using System.Text;
 
 namespace PSParallelPipeline;
 
 internal static class Extensions
 {
+    internal static void AddFunctions(
+        this PSCmdlet cmdlet,
+        string[] functionsToAdd,
+        InitialSessionState initialSessionState)
+    {
+        foreach (string function in functionsToAdd)
+        {
+            CommandInfo? commandInfo = cmdlet
+                .InvokeCommand
+                .GetCommand(function, CommandTypes.Function);
+
+            if (commandInfo is null)
+            {
+                continue;
+            }
+
+            initialSessionState.Commands.Add(new SessionStateFunctionEntry(
+                name: function,
+                definition: commandInfo.Definition));
+        }
+    }
+
     internal static Dictionary<string, object?> GetUsingParameters(
         this ScriptBlock script,
         PSCmdlet cmdlet)
