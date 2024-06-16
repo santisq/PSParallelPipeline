@@ -9,9 +9,9 @@ namespace PSParallelPipeline;
 
 internal sealed class Worker : IDisposable
 {
-    private readonly BlockingCollection<PSTask> _inputQueue = new();
+    private readonly BlockingCollection<PSTask> _inputQueue = [];
 
-    internal BlockingCollection<PSOutputData> OutputPipe { get; } = new();
+    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
 
     internal CancellationToken Token { get => _cts.Token; }
 
@@ -25,7 +25,7 @@ internal sealed class Worker : IDisposable
 
     private readonly Dictionary<string, object?> _inputObject = new()
     {
-        { "Name", "_" },
+        ["Name"] = "_"
     };
 
     internal Worker(PoolSettings settings)

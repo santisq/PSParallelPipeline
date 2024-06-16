@@ -33,13 +33,13 @@ internal sealed class PSTask : IDisposable
     static internal PSTask Create(RunspacePool runspacePool)
     {
         PSTask ps = new(runspacePool);
-        ps.HookStreams(runspacePool.PSOutputStreams);
+        HookStreams(ps, runspacePool.PSOutputStreams);
         return ps;
     }
 
-    private void HookStreams(PSOutputStreams outputStreams)
+    private static void HookStreams(PSTask ps, PSOutputStreams outputStreams)
     {
-        _streams.Error = outputStreams.Error;
+        ps._streams.Error = outputStreams.Error;
     }
 
     private static Task InvokePowerShellAsync(
@@ -67,14 +67,9 @@ internal sealed class PSTask : IDisposable
     {
         if (usingParams is { Count: > 0 })
         {
-            // _usingParams ??= new Dictionary<string, Dictionary<string, object?>>
-            // {
-            //     { "--%", usingParams }
-            // };
-
             _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
             {
-                { "--%", usingParams }
+                ["--%"] = usingParams
             });
         }
 

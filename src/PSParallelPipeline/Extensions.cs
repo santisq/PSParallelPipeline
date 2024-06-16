@@ -12,7 +12,7 @@ internal static class Extensions
         this ScriptBlock script,
         PSCmdlet cmdlet)
     {
-        Dictionary<string, object?> usingParams = new();
+        Dictionary<string, object?> usingParams = [];
 
         foreach (UsingExpressionAst usingStatement in script.Ast.FindAll((a) => a is UsingExpressionAst, true))
         {

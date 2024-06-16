@@ -11,35 +11,35 @@ internal sealed class PSOutputStreams : IDisposable
 
     private CancellationToken Token { get => _worker.Token; }
 
-    internal PSDataCollection<PSObject> Success { get; } = new();
+    internal PSDataCollection<PSObject> Success { get; } = [];
 
-    internal PSDataCollection<ErrorRecord> Error { get; } = new();
+    internal PSDataCollection<ErrorRecord> Error { get; } = [];
 
     private readonly Worker _worker;
 
     internal PSOutputStreams(Worker worker)
     {
         _worker = worker;
-        SetStreams();
+        SetStreams(this);
     }
 
     internal void AddOutput(PSOutputData data) => OutputPipe.Add(data, Token);
 
-    internal void SetStreams()
+    private static void SetStreams(PSOutputStreams outputStreams)
     {
-        Success.DataAdded += (s, e) =>
+        outputStreams.Success.DataAdded += (s, e) =>
         {
-            foreach (PSObject data in Success.ReadAll())
+            foreach (PSObject data in outputStreams.Success.ReadAll())
             {
-                AddOutput(new PSOutputData(Type.Success, data));
+                outputStreams.AddOutput(new PSOutputData(Type.Success, data));
             }
         };
 
-        Error.DataAdded += (s, e) =>
+        outputStreams.Error.DataAdded += (s, e) =>
         {
-            foreach (ErrorRecord error in Error.ReadAll())
+            foreach (ErrorRecord error in outputStreams.Error.ReadAll())
             {
-                AddOutput(new PSOutputData(Type.Error, error));
+                outputStreams.AddOutput(new PSOutputData(Type.Error, error));
             }
         };
     }
