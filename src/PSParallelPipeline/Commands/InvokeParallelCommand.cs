@@ -1,10 +1,12 @@
 using System;
+using System.Collections;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
+[Alias("parallel")]
 public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {
     [Parameter(Position = 0, Mandatory = true)]
@@ -22,12 +24,26 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     public int TimeOutSeconds { get; set; }
 
     [Parameter]
+    [ValidateNotNullOrEmpty]
+    public IDictionary? Variables { get; set; }
+
+    [Parameter]
+    [ValidateNotNullOrEmpty]
+    [ArgumentCompleter(typeof(CommandCompleter))]
+    public string[]? Functions { get; set; }
+
+    [Parameter]
     public SwitchParameter UseNewRunspace { get; set; }
 
     private Worker? _worker;
 
     protected override void BeginProcessing()
     {
+        // foreach (string function in Functions)
+        // {
+
+        // }
+
         PoolSettings poolSettings = new()
         {
             MaxRunspaces = ThrottleLimit,
