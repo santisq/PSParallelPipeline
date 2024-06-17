@@ -105,5 +105,35 @@ Describe PSParallelPipeline {
             $null | Invoke-Parallel { Write-Error 'Error' } 2>&1 |
                 Should -BeOfType ([System.Management.Automation.ErrorRecord])
         }
+
+        It 'Should throw if passing a scriptblock with using: scope modifier' {
+            {
+                $sb = { }
+                1..1 | Invoke-Parallel { $using:sb }
+            } | Should -Throw
+        }
+
+        It 'Should throw if passing a scriptblock with the -Variables parameter' {
+            {
+                $sb = { }
+                1..1 | Invoke-Parallel { $sb } -Variables @{ sb = $sb }
+            } | Should -Throw
+        }
+
+        It 'Allows indexing on using: statements' {
+            $arr = 0..10; $hash = @{ foo = 'bar' }
+            1 | Invoke-Parallel { $using:arr[-1] } | Should -BeExactly 10
+            1 | Invoke-Parallel { $using:hash['FOO'] } | Should -BeExactly 'bar'
+        }
+
+        It 'Allows member accessing on using: statemets' {
+            $hash = @{
+                foo = @{
+                    bar = [pscustomobject]@{ Index = 0..10 }
+                }
+            }
+
+            1 | Invoke-Parallel { $using:hash['foo']['bar'].Index[5] } | Should -BeExactly 5
+        }
     }
 }

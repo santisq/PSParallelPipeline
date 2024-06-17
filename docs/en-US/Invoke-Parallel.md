@@ -14,8 +14,15 @@ Enables parallel processing of pipeline input objects.
 ## SYNTAX
 
 ```powershell
-Invoke-Parallel -InputObject <Object> [-ScriptBlock] <ScriptBlock> [-ThrottleLimit <Int32>]
- [-Variables <Hashtable>] [-Functions <String[]>] [-UseNewRunspace] [-TimeoutSeconds <Int32>] [<CommonParameters>]
+Invoke-Parallel
+    -InputObject <Object>
+    [-ScriptBlock] <ScriptBlock>
+    [-ThrottleLimit <Int32>]
+    [-Variables <Hashtable>]
+    [-Functions <String[]>]
+    [-UseNewRunspace]
+    [-TimeoutSeconds <Int32>]
+    [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -27,7 +34,7 @@ This function is mostly intended for users of Windows PowerShell 5.1 though full
 
 ## EXAMPLES
 
-### EXAMPLE 1: Run slow script in parallel batches
+### Example 1: Run slow script in parallel batches
 
 ```powershell
 $message = 'Hello world from {0}'
@@ -147,7 +154,8 @@ Accept wildcard characters: False
 
 Specifies the input objects to be processed in the ScriptBlock.
 
-__Note: This parameter is intended to be bound from pipeline.__
+> [!NOTE]
+> This parameter is intended to be bound from pipeline.
 
 ```yaml
 Type: Object
@@ -182,7 +190,9 @@ Accept wildcard characters: False
 
 Specifies the number of script blocks that are invoked in parallel.
 Input objects are blocked until the running script block count falls below the ThrottleLimit.
-__The default value is 5__.
+
+> [!NOTE]
+> `-ThrottleLimit` default value is `5`.
 
 ```yaml
 Type: Int32
