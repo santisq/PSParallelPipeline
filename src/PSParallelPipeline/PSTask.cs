@@ -40,6 +40,11 @@ internal sealed class PSTask : IDisposable
     private static void HookStreams(PSTask ps, PSOutputStreams outputStreams)
     {
         ps._streams.Error = outputStreams.Error;
+        ps._streams.Debug = outputStreams.Debug;
+        ps._streams.Information = outputStreams.Information;
+        ps._streams.Progress = outputStreams.Progress;
+        ps._streams.Verbose = outputStreams.Verbose;
+        ps._streams.Warning = outputStreams.Wraning;
     }
 
     private static Task InvokePowerShellAsync(

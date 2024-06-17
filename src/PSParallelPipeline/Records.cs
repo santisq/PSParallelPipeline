@@ -6,7 +6,12 @@ namespace PSParallelPipeline;
 internal enum Type
 {
     Success,
-    Error
+    Error,
+    Debug,
+    Information,
+    Progress,
+    Verbose,
+    Wraning
 }
 
 internal record struct PSOutputData(Type Type, object Output);

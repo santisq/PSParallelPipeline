@@ -144,6 +144,26 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             case Type.Error:
                 WriteError((ErrorRecord)data.Output);
                 break;
+
+            case Type.Debug:
+                WriteDebug((string)data.Output);
+                break;
+
+            case Type.Information:
+                WriteInformation((InformationRecord)data.Output);
+                break;
+
+            case Type.Progress:
+                WriteProgress((ProgressRecord)data.Output);
+                break;
+
+            case Type.Verbose:
+                WriteVerbose((string)data.Output);
+                break;
+
+            case Type.Wraning:
+                WriteWarning((string)data.Output);
+                break;
         }
     }
 
