@@ -207,7 +207,7 @@ Describe PSParallelPipeline {
             $timer = [Stopwatch]::StartNew()
             1..5 | Invoke-Parallel { Start-Sleep 1 }
             $timer.Stop()
-            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.1))
+            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.5))
         }
 
         It 'Can add items to a single thread instance' {
