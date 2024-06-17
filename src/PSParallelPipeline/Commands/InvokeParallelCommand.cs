@@ -48,12 +48,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
         if (Functions is not null)
         {
-            this.AddFunctions(Functions, iss);
+            iss.AddFunctions(Functions, this);
         }
 
         if (Variables is not null)
         {
-            this.AddVariables(Variables, iss);
+            iss.AddVariables(Variables, this);
         }
 
         PoolSettings poolSettings = new()

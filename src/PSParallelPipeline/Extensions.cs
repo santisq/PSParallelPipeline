@@ -11,9 +11,9 @@ namespace PSParallelPipeline;
 internal static class Extensions
 {
     internal static void AddFunctions(
-        this PSCmdlet cmdlet,
+        this InitialSessionState initialSessionState,
         string[] functionsToAdd,
-        InitialSessionState initialSessionState)
+        PSCmdlet cmdlet)
     {
         foreach (string function in functionsToAdd)
         {
@@ -33,9 +33,9 @@ internal static class Extensions
     }
 
     internal static void AddVariables(
-        this PSCmdlet cmdlet,
+        this InitialSessionState initialSessionState,
         Hashtable variables,
-        InitialSessionState initialSessionState)
+        PSCmdlet cmdlet)
     {
         foreach (DictionaryEntry pair in variables)
         {
