@@ -117,6 +117,7 @@ jobs:
       with:
         files: ./output/TestResults/Coverage.xml
         flags: ${{ matrix.info.name }}
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   publish:
     name: publish
