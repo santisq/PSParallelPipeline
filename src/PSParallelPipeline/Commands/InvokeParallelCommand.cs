@@ -37,7 +37,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     public string[]? Functions { get; set; }
 
     [Parameter]
-    [Alias("uns")]
+    [Alias("unr")]
     public SwitchParameter UseNewRunspace { get; set; }
 
     private Worker? _worker;
