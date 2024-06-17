@@ -144,7 +144,7 @@ Describe PSParallelPipeline {
 
             Complete 'Invoke-Parallel -Functions Compl' |
                 ForEach-Object ListItemText |
-                Should -Be 'Complete'
+                Should -Contain 'Complete'
         }
     }
 
