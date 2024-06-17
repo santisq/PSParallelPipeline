@@ -23,7 +23,7 @@ internal sealed class PSOutputStreams : IDisposable
 
     internal PSDataCollection<VerboseRecord> Verbose { get; } = [];
 
-    internal PSDataCollection<WarningRecord> Wraning { get; } = [];
+    internal PSDataCollection<WarningRecord> Warning { get; } = [];
 
     private readonly Worker _worker;
 
@@ -86,11 +86,11 @@ internal sealed class PSOutputStreams : IDisposable
             }
         };
 
-        outputStreams.Wraning.DataAdded += (s, e) =>
+        outputStreams.Warning.DataAdded += (s, e) =>
         {
-            foreach (WarningRecord warning in outputStreams.Wraning.ReadAll())
+            foreach (WarningRecord warning in outputStreams.Warning.ReadAll())
             {
-                outputStreams.AddOutput(new PSOutputData(Type.Wraning, warning.Message));
+                outputStreams.AddOutput(new PSOutputData(Type.Warning, warning.Message));
             }
         };
     }

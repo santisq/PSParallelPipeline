@@ -44,7 +44,7 @@ internal sealed class PSTask : IDisposable
         ps._streams.Information = outputStreams.Information;
         ps._streams.Progress = outputStreams.Progress;
         ps._streams.Verbose = outputStreams.Verbose;
-        ps._streams.Warning = outputStreams.Wraning;
+        ps._streams.Warning = outputStreams.Warning;
     }
 
     private static Task InvokePowerShellAsync(
