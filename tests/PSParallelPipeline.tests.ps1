@@ -32,7 +32,16 @@ Describe PSParallelPipeline {
         }
 
         It 'Debug' {
-            1 | Invoke-Parallel { Write-Debug $_ -Debug } -Debug -Verbose 5>&1 |
+            if ($IsCoreCLR) {
+                1 | Invoke-Parallel { Write-Debug $_ -Debug } -Debug 5>&1 |
+                Should -BeOfType ([DebugRecord])
+
+                return
+            }
+
+            # Debug is weird in PowerShell 5.1. Needs a different test.
+            $DebugPreference = 'Continue'
+            1 | Invoke-Parallel { & { [CmdletBinding()]param() $PSCmdlet.WriteDebug(123) } -Debug } 5>&1 |
                 Should -BeOfType ([DebugRecord])
         }
 
