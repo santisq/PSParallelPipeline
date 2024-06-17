@@ -17,22 +17,27 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     [Parameter]
     [ValidateRange(1, int.MaxValue)]
+    [Alias("tl")]
     public int ThrottleLimit { get; set; } = 5;
 
     [Parameter]
     [ValidateRange(0, int.MaxValue)]
+    [Alias("to")]
     public int TimeOutSeconds { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
-    public Hashtable? Variable { get; set; }
+    [Alias("vars")]
+    public Hashtable? Variables { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
     [ArgumentCompleter(typeof(CommandCompleter))]
-    public string[]? Function { get; set; }
+    [Alias("funcs")]
+    public string[]? Functions { get; set; }
 
     [Parameter]
+    [Alias("uns")]
     public SwitchParameter UseNewRunspace { get; set; }
 
     private Worker? _worker;
@@ -41,14 +46,14 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     {
         InitialSessionState iss = InitialSessionState.CreateDefault2();
 
-        if (Function is not null)
+        if (Functions is not null)
         {
-            this.AddFunctions(Function, iss);
+            this.AddFunctions(Functions, iss);
         }
 
-        if (Variable is not null)
+        if (Variables is not null)
         {
-            this.AddVariables(Variable, iss);
+            this.AddVariables(Variables, iss);
         }
 
         PoolSettings poolSettings = new()

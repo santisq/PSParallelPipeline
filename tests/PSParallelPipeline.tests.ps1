@@ -44,9 +44,9 @@ Describe PSParallelPipeline {
             )
         }
 
-        It 'Can make variables available through the -Variable parameter' {
+        It 'Can make variables available through the -Variables parameter' {
             $invokeParallelSplat = @{
-                Variable    = @{ message = 'Hello world from {0:D2}' }
+                Variables   = @{ message = 'Hello world from {0:D2}' }
                 ScriptBlock = { $message -f $_ }
             }
 
@@ -79,9 +79,9 @@ Describe PSParallelPipeline {
             $dict[$PID].ProcessName | Should -Be (Get-Process -Id $PID).ProcessName
         }
 
-        It 'Should add functions to the parallel scope with -Function parameter' {
+        It 'Should add functions to the parallel scope with -Functions parameter' {
             $invokeParallelSplat = @{
-                Function    = 'Test-Function'
+                Functions   = 'Test-Function'
                 ScriptBlock = { Test-Function $_ }
             }
 
