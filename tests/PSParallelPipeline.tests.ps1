@@ -27,8 +27,8 @@ Describe PSParallelPipeline {
         It 'Should stop processing after a set timeout' {
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
-            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 } |
-                Should -Throw
+            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 -ErrorAction Stop } |
+                Should -Throw -ExceptionType ([System.TimeoutException])
 
             $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
             $timer.Stop()
@@ -97,11 +97,12 @@ Describe PSParallelPipeline {
         }
 
         It 'Should throw a terminating error' {
-            { 0..1 | Invoke-Parallel { throw } } | Should -Throw
+            { $null | Invoke-Parallel { Write-Error 'Error' } -ErrorAction Stop } |
+                Should -Throw
         }
 
         It 'Should write to the Error Stream' {
-            0..1 | Invoke-Parallel { Write-Error 'hello world!' } 2>&1 |
+            $null | Invoke-Parallel { Write-Error 'Error' } 2>&1 |
                 Should -BeOfType ([System.Management.Automation.ErrorRecord])
         }
     }

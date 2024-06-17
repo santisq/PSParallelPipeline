@@ -19,7 +19,7 @@ param (
     $OutputFile
 )
 
-$ErrorActionPreference = 'Stop'
+# $ErrorActionPreference = 'Stop'
 $requirements = Import-PowerShellDataFile ([IO.Path]::Combine($PSScriptRoot, 'requiredModules.psd1'))
 foreach ($req in $requirements.GetEnumerator()) {
     $importModuleSplat = @{
