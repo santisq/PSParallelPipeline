@@ -8,10 +8,10 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule        = 'PSParallelPipeline.psm1'
+    RootModule        = 'bin/netstandard2.0/PSParallelPipeline.dll'
 
     # Version number of this module.
-    ModuleVersion     = '1.1.5'
+    ModuleVersion     = '1.1.6'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -68,10 +68,10 @@
     # NestedModules = @()
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-    FunctionsToExport = @('Invoke-Parallel')
+    FunctionsToExport = @()
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-    CmdletsToExport   = @()
+    CmdletsToExport   = @('Invoke-Parallel')
 
     # Variables to export from this module
     VariablesToExport = @()

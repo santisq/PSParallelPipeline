@@ -1,11 +1,10 @@
-﻿Describe PSParallelPipeline {
-    BeforeAll {
-        $global:ErrorActionPreference = 'Stop'
-        $moduleName = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '..', 'Module', '*.psd1'))).BaseName
-        $manifestPath = [IO.Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
-        Import-Module $manifestPath
-    }
+﻿$moduleName = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '..', 'module', '*.psd1'))).BaseName
+$manifestPath = [IO.Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
 
+Import-Module $manifestPath
+Import-Module ([System.IO.Path]::Combine($PSScriptRoot, 'common.psm1'))
+
+Describe PSParallelPipeline {
     Context 'Invoke-Parallel' -Tag 'Invoke-Parallel' {
         It 'Should process all pipeline input' {
             { 0..10 | Invoke-Parallel { $_ } } |
@@ -28,8 +27,8 @@
         It 'Should stop processing after a set timeout' {
             $timer = [System.Diagnostics.Stopwatch]::StartNew()
 
-            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 } |
-                Should -Throw
+            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 -ErrorAction Stop } |
+                Should -Throw -ExceptionType ([System.TimeoutException])
 
             $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
             $timer.Stop()
@@ -81,16 +80,6 @@
         }
 
         It 'Should add functions to the parallel scope with -Functions parameter' {
-            # This test is broken in Pester, need to figure out why
-            # return
-
-            # seems to need global scoped function for some reason...
-
-            function global:Test-Function {
-                param($s)
-                'Hello {0:D2}' -f $s
-            }
-
             $invokeParallelSplat = @{
                 Functions   = 'Test-Function'
                 ScriptBlock = { Test-Function $_ }
@@ -108,17 +97,13 @@
         }
 
         It 'Should throw a terminating error' {
-            { 0..1 | Invoke-Parallel { throw } } | Should -Throw
+            { $null | Invoke-Parallel { Write-Error 'Error' } -ErrorAction Stop } |
+                Should -Throw
         }
 
         It 'Should write to the Error Stream' {
-            try {
-                0..1 | Invoke-Parallel { Write-Error 'hello world!' }
-            }
-            catch {
-                $_ | Should -BeOfType ([System.Management.Automation.ErrorRecord])
-            }
-
+            $null | Invoke-Parallel { Write-Error 'Error' } 2>&1 |
+                Should -BeOfType ([System.Management.Automation.ErrorRecord])
         }
 
         It 'Should throw if passing a scriptblock with using: scope modifier' {
