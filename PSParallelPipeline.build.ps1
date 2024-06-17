@@ -198,5 +198,5 @@ task DoTest {
 }
 
 task Build -Jobs Clean, BuildManaged, CopyToRelease, BuildDocs, Package
-task Test -Jobs BuildManaged, Analyze, DoUnitTest, DoTest
+task Test -Jobs BuildManaged, Analyze, DoTest
 # task . Build

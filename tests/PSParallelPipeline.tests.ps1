@@ -1,11 +1,10 @@
-﻿Describe PSParallelPipeline {
-    BeforeAll {
-        $global:ErrorActionPreference = 'Stop'
-        $moduleName = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '..', 'Module', '*.psd1'))).BaseName
-        $manifestPath = [IO.Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
-        Import-Module $manifestPath
-    }
+﻿$moduleName = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '..', 'module', '*.psd1'))).BaseName
+$manifestPath = [IO.Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
 
+Import-Module $manifestPath
+Import-Module ([System.IO.Path]::Combine($PSScriptRoot, 'common.psm1'))
+
+Describe PSParallelPipeline {
     Context 'Invoke-Parallel' -Tag 'Invoke-Parallel' {
         It 'Should process all pipeline input' {
             { 0..10 | Invoke-Parallel { $_ } } |
@@ -45,9 +44,9 @@
             )
         }
 
-        It 'Can make variables available through the -Variables parameter' {
+        It 'Can make variables available through the -Variable parameter' {
             $invokeParallelSplat = @{
-                Variables   = @{ message = 'Hello world from {0:D2}' }
+                Variable    = @{ message = 'Hello world from {0:D2}' }
                 ScriptBlock = { $message -f $_ }
             }
 
@@ -80,19 +79,9 @@
             $dict[$PID].ProcessName | Should -Be (Get-Process -Id $PID).ProcessName
         }
 
-        It 'Should add functions to the parallel scope with -Functions parameter' {
-            # This test is broken in Pester, need to figure out why
-            # return
-
-            # seems to need global scoped function for some reason...
-
-            function global:Test-Function {
-                param($s)
-                'Hello {0:D2}' -f $s
-            }
-
+        It 'Should add functions to the parallel scope with -Function parameter' {
             $invokeParallelSplat = @{
-                Functions   = 'Test-Function'
+                Function    = 'Test-Function'
                 ScriptBlock = { Test-Function $_ }
             }
 
@@ -112,13 +101,8 @@
         }
 
         It 'Should write to the Error Stream' {
-            try {
-                0..1 | Invoke-Parallel { Write-Error 'hello world!' }
-            }
-            catch {
-                $_ | Should -BeOfType ([System.Management.Automation.ErrorRecord])
-            }
-
+            0..1 | Invoke-Parallel { Write-Error 'hello world!' } 2>&1 |
+                Should -BeOfType ([System.Management.Automation.ErrorRecord])
         }
     }
 }
