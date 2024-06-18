@@ -1,14 +1,4 @@
-﻿<#
-.SYNOPSIS
-Run Pester test
-
-.PARAMETER TestPath
-The path to the tests to run
-
-.PARAMETER OutputFile
-The path to write the Pester test results to.
-#>
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory)]
     [String]
