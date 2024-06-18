@@ -91,9 +91,9 @@ PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # Invoke-Parallel: Timeout has been reached.
 ```
 
-### `$using:` Support
+### [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_keywords?view=powershell-7.4) Support
 
-Same as `ForEach-Object -Parallel` you can use the `$using:` keyword to pass-in variables to the parallel invocations.
+Same as `ForEach-Object -Parallel` you can use the `$using:` scope modifier to pass-in variables to the parallel invocations.
 
 ```powershell
 $message = 'world!'

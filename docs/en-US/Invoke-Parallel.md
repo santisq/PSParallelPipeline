@@ -54,9 +54,9 @@ $message = 'Hello world from '
 } -Variables @{ message = $message }
 ```
 
-[`-Variables`](#-variables) specifies a hashtable with key / value pairs of variables to pass-in to the parallel scope. The hashtable keys defines the name for passed-in variables. This parameter is an alternative for the `$using:` keyword.
+[`-Variables`](#-variables) specifies a hashtable with key / value pairs of variables to pass-in to the parallel scope. The hashtable keys defines the name for passed-in variables. This parameter is an alternative for the `$using:` scope modifier.
 
-### Example 3: Adding to a single thread safe instance with `$using:` keyword
+### Example 3: Adding to a single thread safe instance with `$using:` scope modifier
 
 ```powershell
 $dict = [System.Collections.Concurrent.ConcurrentDictionary[int, object]]::new()
@@ -238,7 +238,7 @@ The hashtable keys defines the name for passed-in variables.
 
 > [!TIP]
 >
-> This parameter is an alternative for the `$using:` keyword.
+> This parameter is an alternative for the [`$using:` scope modifier](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes?view=powershell-7.4#scope-modifiers).
 
 ```yaml
 Type: Hashtable
