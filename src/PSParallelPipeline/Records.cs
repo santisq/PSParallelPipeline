@@ -11,7 +11,7 @@ internal enum Type
     Information,
     Progress,
     Verbose,
-    Wraning
+    Warning
 }
 
 internal record struct PSOutputData(Type Type, object Output);

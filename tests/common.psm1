@@ -15,10 +15,3 @@ function Complete {
             $null).CompletionMatches
     }
 }
-
-function Test-Completer {
-    param(
-        [ArgumentCompleter([PSParallelPipeline.CommandCompleter])]
-        [string] $Test
-    )
-}

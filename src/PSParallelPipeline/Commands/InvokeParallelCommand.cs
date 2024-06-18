@@ -166,7 +166,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 WriteVerbose((string)data.Output);
                 break;
 
-            case Type.Wraning:
+            case Type.Warning:
                 WriteWarning((string)data.Output);
                 break;
         }
