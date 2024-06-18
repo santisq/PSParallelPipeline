@@ -7,7 +7,7 @@ namespace PSParallelPipeline;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
 [Alias("parallel")]
-[OutputType(typeof(PSObject))]
+[OutputType(typeof(object))]
 public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {
     [Parameter(Position = 0, Mandatory = true)]

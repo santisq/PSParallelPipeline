@@ -17,9 +17,9 @@ This project was inspired by RamblingCookieMonster's [`Invoke-Parallel`](https:/
 
 ## What does this Module have to offer?
 
-Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), this module offers the same capabilities as `ForEach-Object -Parallel` in addition to supporting [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters), missing feature in the _built-in_ cmdlet.
+Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), this module offers the same capabilities as `ForEach-Object -Parallel` in addition to supporting [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters), a missing feature in the _built-in_ cmdlet.
 
-### Truly pipeline streaming capabilities
+### Pipeline streaming capabilities
 
 ```powershell
 Measure-Command {
@@ -34,7 +34,7 @@ Measure-Command {
 
 ### Support for [CommonParameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)
 
-This is something missing on `ForEach-Object -Parallel` as of `v7.5.0.3`.
+Something missing on `ForEach-Object -Parallel` as of `v7.5.0.3`.
 
 ```powershell
 PS \> 0..5 | ForEach-Object -Parallel { Write-Error $_ } -ErrorAction Stop
@@ -91,7 +91,7 @@ PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # Invoke-Parallel: Timeout has been reached.
 ```
 
-### [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_keywords?view=powershell-7.4) Support
+## [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_keywords?view=powershell-7.4) Support
 
 Same as `ForEach-Object -Parallel` you can use the `$using:` scope modifier to pass-in variables to the parallel invocations.
 
@@ -101,18 +101,18 @@ $message = 'world!'
 # hello world!
 ```
 
-### `-Functions` and `-Variables` Parameters
+## `-Functions` and `-Variables` Parameters
 
 Both parameters are a quality of life addition, specially `-Functions`, which adds the locally defined functions to the runspaces [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate), a missing feature on `ForEach-Object -Parallel`. This is a much better alternative to passing-in the function definition to the parallel scope.
 
-#### [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables)
+### [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables)
 
 ```powershell
 'hello ' | Invoke-Parallel { $_ + $msg } -Variables @{ msg = 'world!' }
 # hello world!
 ```
 
-#### [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions)
+### [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions)
 
 ```powershell
 function Get-Message {param($MyParam) $MyParam + 'world!' }
@@ -144,7 +144,7 @@ Set-Location ./PSParallelPipeline
 
 ## Requirements
 
-Compatible with __Windows PowerShell 5.1__ and [__PowerShell Core 7+__](https://github.com/PowerShell/PowerShell).
+This module has no requirements and is fully compatible with __Windows PowerShell 5.1__ and [__PowerShell Core 7+__](https://github.com/PowerShell/PowerShell).
 
 ## Contributing
 
