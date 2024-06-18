@@ -116,14 +116,21 @@ task Package {
 }
 
 task Analyze {
+    $analyzerPath = [Path]::Combine($PSScriptRoot, 'ScriptAnalyzerSettings.psd1')
+    if (-not (Test-Path $analyzerPath)) {
+        Write-Host 'No Analyzer Settings found, skipping'
+        return
+    }
+
     $pssaSplat = @{
         Path        = $ReleasePath
-        Settings    = [Path]::Combine($PSScriptRoot, 'ScriptAnalyzerSettings.psd1')
+        Settings    = $analyzerPath
         Recurse     = $true
         ErrorAction = 'SilentlyContinue'
     }
     $results = Invoke-ScriptAnalyzer @pssaSplat
-    if ($null -ne $results) {
+
+    if ($results) {
         $results | Out-String
         throw 'Failed PsScriptAnalyzer tests, build failed'
     }
@@ -199,4 +206,3 @@ task DoTest {
 
 task Build -Jobs Clean, BuildManaged, CopyToRelease, BuildDocs, Package
 task Test -Jobs BuildManaged, Analyze, DoTest
-# task . Build

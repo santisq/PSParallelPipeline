@@ -1,5 +1,4 @@
-﻿# I may've totally stolen this from jborean93 :D
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter()]
     [ValidateSet('Debug', 'Release')]
@@ -20,7 +19,7 @@ end {
     $modulePath = [IO.Path]::Combine($PSScriptRoot, 'tools', 'Modules')
     $requirements = Import-PowerShellDataFile ([IO.Path]::Combine($PSScriptRoot, 'tools', 'requiredModules.psd1'))
 
-    foreach ($req in $requirements.GetEnumerator() | Sort-Object { $_.Value['Priority'] }) {
+    foreach ($req in $requirements.GetEnumerator()) {
         $targetPath = [IO.Path]::Combine($modulePath, $req.Key)
 
         if (Test-Path -LiteralPath $targetPath) {
