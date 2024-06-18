@@ -28,62 +28,51 @@ Invoke-Parallel
 ## DESCRIPTION
 
 `Invoke-Parallel` is a PowerShell cmdlet that allows parallel processing of input objects with similar capabilities as
-[`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object).
-
-This function is mostly intended for users of Windows PowerShell 5.1 though fully compatible with newer versions of PowerShell.
+[`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) introduced in PowerShell v7.0.
 
 ## EXAMPLES
 
 ### Example 1: Run slow script in parallel batches
 
 ```powershell
-$message = 'Hello world from {0}'
+$message = 'Hello world from '
 
 0..10 | Invoke-Parallel {
-    $using:message -f [runspace]::DefaultRunspace.InstanceId
+    $using:message + [runspace]::DefaultRunspace.InstanceId
     Start-Sleep 3
-} -ThrottleLimit 3
-```
-
-### Example 2: Demonstrates how `-Variables` parameter works
-
-```powershell
-$message = 'Hello world from {0}'
-
-0..10 | Invoke-Parallel {
-    $message -f [runspace]::DefaultRunspace.InstanceId
-    Start-Sleep 3
-} -Variables @{ message = $message } -ThrottleLimit 3
-```
-
-The `-Variables` parameter allows to pass variables to the parallel runspaces. The hash table `Keys` become the Variable Name inside the Script Block.
-
-### Example 3: Adding to a single thread safe instance
-
-```powershell
-$threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
-
-Get-Process | Invoke-Parallel {
-    $dict = $using:threadSafeDictionary
-    $dict.TryAdd($_.ProcessName, $_)
 }
-
-$threadSafeDictionary["pwsh"]
 ```
 
-### Example 4: Adding to a single thread safe instance using `-Variables` parameter
+### Example 2: Demonstrates `-Variables` Parameter
 
 ```powershell
-$threadSafeDictionary = [System.Collections.Concurrent.ConcurrentDictionary[string,object]]::new()
+$message = 'Hello world from '
 
-Get-Process | Invoke-Parallel {
-    $dict.TryAdd($_.ProcessName, $_)
-} -Variables @{ dict = $threadSafeDictionary }
-
-$threadSafeDictionary["pwsh"]
+0..10 | Invoke-Parallel {
+    $message + [runspace]::DefaultRunspace.InstanceId
+    Start-Sleep 3
+} -Variables @{ message = $message }
 ```
 
-### Example 5: Passing a locally defined Function to the parallel scope
+[`-Variables`](#-variables) specifies a hashtable with key / value pairs of variables to pass-in to the parallel scope. The hashtable keys defines the name for passed-in variables. This parameter is an alternative for the `$using:` scope modifier.
+
+### Example 3: Adding to a single thread safe instance with `$using:` scope modifier
+
+```powershell
+$dict = [System.Collections.Concurrent.ConcurrentDictionary[int, object]]::new()
+Get-Process | Invoke-Parallel { ($using:dict)[$_.Id] = $_ }
+$dict[$PID]
+```
+
+### Example 4: Adding to a single thread safe instance using `-Variables`
+
+```powershell
+$dict = [System.Collections.Concurrent.ConcurrentDictionary[int, object]]::new()
+Get-Process | Invoke-Parallel { $dict[$_.Id] = $_ } -Variables @{ dict = $dict }
+$dict[$PID]
+```
+
+### Example 5: Demonstrates `-Functions` Parameter
 
 ```powershell
 function Greet { param($s) "$s hey there!" }
@@ -91,57 +80,54 @@ function Greet { param($s) "$s hey there!" }
 0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
 ```
 
-This example demonstrates how to pass a locally defined Function to the Runspaces scope.
+[`-Functions`](#-functions) adds locally defined functions to the runspaces [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate) allowing you to use them in the parallel scope.
 
-### Example 6: Setting a timeout for parallel tasks
-
-```powershell
-Get-Process | Invoke-Parallel {
-    Get-Random -Maximum 4 | Start-Sleep
-    $_
-} -ThrottleLimit 10 -TimeoutSeconds 4
-```
-
-If the timeout in seconds is reached all parallel invocations are stopped.
-
-### Example 7: Using a new runspace for each invocation
+### Example 6: Demonstrates `-TimeoutSeconds` Parameter
 
 ```powershell
-0..5 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId }
-
-Guid
-----
-ca9e3ff2-1eb0-4911-a288-838574fc7cb2
-775c65bd-5267-4ecb-943c-a1a1788d1116
-0cffb831-8e41-44b6-9ad8-5c9acfca64ce
-e5bc6cce-6cab-4d44-83e5-d947ab56ca15
-b7a9ba07-ad6d-4097-9224-3d87c10c01d7
-ca9e3ff2-1eb0-4911-a288-838574fc7cb2
-
-0..5 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId } -UseNewRunspace
-
-Guid
-----
-e4047803-0ee7-43e3-b195-c5a456db0cee
-3344f9f5-7b02-4926-b69e-313830cf4ee2
-ac22866a-7a41-4c24-b31c-47155054022f
-d5be0085-6f80-49c6-9a31-e50f1960329d
-80405d89-87fb-47f0-b6ba-a59392a99b6f
-3b78d3de-5759-4364-85df-dc72427e6af8
+0..10 | Invoke-Parallel { Start-Sleep 1 } -TimeoutSeconds 3
 ```
 
-By default the runspaces are reused. When the `-UseNewRunspace` parameter is used each parallel invocation will create a new runspace.
+All parallel invocations are stopped when the timeout is reached and any remaining input objects to be processed are ignored.
+
+### Example 7: Demonstrates `-UseNewRunspace` Parameter
+
+```powershell
+0..3 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId } -ThrottleLimit 2
+
+# Guid
+# ----
+# c945ae1f-4e66-4312-b23c-f3994965308e
+# 1c6af45c-8727-4488-937a-4dfc1d259e9e
+# c945ae1f-4e66-4312-b23c-f3994965308e
+# 1c6af45c-8727-4488-937a-4dfc1d259e9e
+
+0..3 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId } -ThrottleLimit 2 -UseNewRunspace
+
+# Guid
+# ----
+# 7a1c3871-6ce2-4b7f-ae90-fb1e92cd9678
+# 2488be9e-15fe-4be2-882d-7d98b068c913
+# d3dd7b5d-e7e3-457f-b6fb-def35fe837d7
+# 9af7c222-061d-4c89-b073-375ee925e538
+```
+
+By default the runspaces are reused. With `-UseNewRunspace` a new runspace is created per input object.
 
 ## PARAMETERS
 
 ### -Functions
 
-Existing functions in the Local Session to have available in the Script Block (Runspaces).
+Specifies existing functions in the Local Session to have added to the runspaces [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
+
+> [!TIP]
+>
+> This method is the recommended way of passing-in local functions to the parallel scope. The alternative to this method is passing-in the function definition (as a string) to the parallel scope and define the function in it.
 
 ```yaml
 Type: String[]
 Parameter Sets: (All)
-Aliases:
+Aliases: funcs
 
 Required: False
 Position: Named
@@ -155,6 +141,7 @@ Accept wildcard characters: False
 Specifies the input objects to be processed in the ScriptBlock.
 
 > [!NOTE]
+>
 > This parameter is intended to be bound from pipeline.
 
 ```yaml
@@ -180,7 +167,7 @@ Parameter Sets: (All)
 Aliases:
 
 Required: True
-Position: 1
+Position: 0
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -188,16 +175,17 @@ Accept wildcard characters: False
 
 ### -ThrottleLimit
 
-Specifies the number of script blocks that are invoked in parallel.
+Specifies the number of script blocks that are invoked in parallel (Degree of Parallelism).
 Input objects are blocked until the running script block count falls below the ThrottleLimit.
 
 > [!NOTE]
+>
 > `-ThrottleLimit` default value is `5`.
 
 ```yaml
 Type: Int32
 Parameter Sets: (All)
-Aliases:
+Aliases: tl
 
 Required: False
 Position: Named
@@ -211,10 +199,14 @@ Accept wildcard characters: False
 Specifies the number of seconds to wait for all input to be processed in parallel.
 After the specified timeout time, all running scripts are stopped and any remaining input objects to be processed are ignored.
 
+> [!NOTE]
+>
+> Default value of `0` disables the timeout and the cmdlet runs until all pipeline input is processed.
+
 ```yaml
 Type: Int32
 Parameter Sets: (All)
-Aliases:
+Aliases: to
 
 Required: False
 Position: Named
@@ -230,7 +222,7 @@ Uses a new runspace for each parallel invocation instead of reusing them.
 ```yaml
 Type: SwitchParameter
 Parameter Sets: (All)
-Aliases:
+Aliases: unr
 
 Required: False
 Position: Named
@@ -241,13 +233,17 @@ Accept wildcard characters: False
 
 ### -Variables
 
-Specifies a hash table of variables to have available in the Script Block (Runspaces).
-The hash table `Keys` become the Variable Name inside the Script Block.
+Specifies a hashtable of variables to have available in the parallel scope.
+The hashtable keys defines the name for passed-in variables.
+
+> [!TIP]
+>
+> This parameter is an alternative for the [`$using:` scope modifier](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes?view=powershell-7.4#scope-modifiers).
 
 ```yaml
 Type: Hashtable
 Parameter Sets: (All)
-Aliases:
+Aliases: vars
 
 Required: False
 Position: Named
@@ -270,4 +266,4 @@ You can pipe any object to this cmdlet.
 
 ### Object
 
-This cmdlet returns objects that are determined by the input.
+This cmdlet returns objects that are determined by the script block.

@@ -156,8 +156,8 @@ Describe PSParallelPipeline {
         }
     }
 
-    Context '$using: keyword Support' {
-        It 'Allows passed-in variables through $using: keyword' {
+    Context '$using: scope modifier Support' {
+        It 'Allows passed-in variables through the $using: scope modifier' {
             $message = 'Hello world from {0:D2}'
             $items = 0..10 | Invoke-Parallel { $using:message -f $_ } |
                 Sort-Object
@@ -185,7 +185,7 @@ Describe PSParallelPipeline {
     }
 
     Context 'Script Block Assertions' {
-        It 'Should throw on passed-in Script Block via $using: keyword' {
+        It 'Should throw on passed-in Script Block via $using: scope modifier' {
             { $sb = { }; 1..1 | Invoke-Parallel { $using:sb } } |
                 Should -Throw -ExceptionType ([PSArgumentException])
         }
