@@ -98,6 +98,7 @@
                 'runspace'
                 'parallel-processing'
                 'powershell'
+                'multithreading'
             )
 
             # A URL to the license for this module.
