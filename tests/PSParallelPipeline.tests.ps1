@@ -34,8 +34,7 @@ Describe PSParallelPipeline {
         It 'Debug' {
             if ($IsCoreCLR) {
                 1 | Invoke-Parallel { Write-Debug $_ -Debug } -Debug 5>&1 |
-                Should -BeOfType ([DebugRecord])
-
+                    Should -BeOfType ([DebugRecord])
                 return
             }
 
@@ -208,6 +207,26 @@ Describe PSParallelPipeline {
             1..5 | Invoke-Parallel { Start-Sleep 1 }
             $timer.Stop()
             $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.5))
+        }
+
+        It 'Supports streaming output' {
+            Measure-Command {
+                0..10 | Invoke-Parallel {
+                    0..10 | ForEach-Object {
+                        Start-Sleep 1
+                        $_
+                    }
+                } | Select-Object -First 5 |
+                Should -HaveCount 5
+            } | ForEach-Object TotalSeconds |
+            Should -BeLessThan 2
+
+            Measure-Command {
+                0..10 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 2 |
+                    Select-Object -First 10 |
+                    Should -HaveCount 10
+            } | ForEach-Object TotalSeconds |
+            Should -BeLessThan 6
         }
 
         It 'Can add items to a single thread instance' {
