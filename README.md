@@ -15,11 +15,11 @@ PSParallelPipeline is a PowerShell Module that includes `Invoke-Parallel`, a cmd
 
 This project was inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and is developed with Windows PowerShell 5.1 users in mind where the closest there is to parallel pipeline processing is [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
 
-## What does this Module have to offer?
+# What does this Module have to offer?
 
 Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), this module offers the same capabilities as `ForEach-Object -Parallel` in addition to supporting [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters), a missing feature in the _built-in_ cmdlet.
 
-### Pipeline streaming capabilities
+## Pipeline streaming capabilities
 
 ```powershell
 Measure-Command {
@@ -32,7 +32,7 @@ Measure-Command {
 #        1.06
 ```
 
-### Support for [CommonParameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)
+## Support for [CommonParameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)
 
 Something missing on `ForEach-Object -Parallel` as of `v7.5.0.3`.
 
