@@ -34,8 +34,6 @@ Measure-Command {
 
 ### Support for [CommonParameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)
 
-#### ForEach-Object -Parallel
-
 This is something missing on `ForEach-Object -Parallel` as of `v7.5.0.3`.
 
 ```powershell
@@ -43,8 +41,6 @@ PS \> 0..5 | ForEach-Object -Parallel { Write-Error $_ } -ErrorAction Stop
 # ForEach-Object: The following common parameters are not currently supported in the Parallel parameter set:
 # ErrorAction, WarningAction, InformationAction, PipelineVariable
 ```
-
-#### Invoke-Parallel
 
 A few examples, they should all work properly, please submit an issue if not 😅.
 
@@ -67,7 +63,7 @@ PS \> 0..5 | Invoke-Parallel { $_ } -PipelineVariable pipe | ForEach-Object { "[
 
 ## Improved `-TimeOutSeconds` error message
 
-### ForEach-Object -Parallel
+In `ForEach-Object -Parallel` we get an error message per stopped parallel invocation instead of a single one.
 
 ```powershell
 PS \>  0..10 | ForEach-Object -Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
@@ -83,7 +79,7 @@ PS \>  0..10 | ForEach-Object -Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # InvalidOperation: The pipeline has been stopped.
 ```
 
-### Invoke-Parallel
+With `Invoke-Parallel` you get a single, _friendlier_, error message.
 
 ```powershell
 PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
