@@ -48,7 +48,7 @@ A few examples, they should all work properly, please submit an issue if not ðŸ˜
 PS \> 0..5 | Invoke-Parallel { Write-Error $_ } -ErrorAction Stop
 # Invoke-Parallel: 0
 
-PS \>  0..5 | Invoke-Parallel { Write-Warning $_ } -WarningAction Stop
+PS \> 0..5 | Invoke-Parallel { Write-Warning $_ } -WarningAction Stop
 # WARNING: 1
 # Invoke-Parallel: The running command stopped because the preference variable "WarningPreference" or common parameter is set to Stop: 1
 
@@ -66,7 +66,7 @@ PS \> 0..5 | Invoke-Parallel { $_ } -PipelineVariable pipe | ForEach-Object { "[
 In `ForEach-Object -Parallel` we get an error message per stopped parallel invocation instead of a single one.
 
 ```powershell
-PS \>  0..10 | ForEach-Object -Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
+PS \> 0..10 | ForEach-Object -Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # 0
 # 1
 # 2
