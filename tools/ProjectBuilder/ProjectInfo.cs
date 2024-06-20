@@ -7,6 +7,18 @@ using System.Xml;
 
 namespace ProjectBuilder;
 
+public enum Configuration
+{
+    Debug,
+    Release
+}
+
+public enum BuildTask
+{
+    Build,
+    Test
+}
+
 public sealed class ProjectInfo
 {
     public DirectoryInfo Project { get; }
@@ -18,6 +30,10 @@ public sealed class ProjectInfo
     public Version? ManifestVersion { get; internal set; }
 
     public DirectoryInfo Source { get; }
+
+    public Configuration Configuration { get; internal set; }
+
+    public BuildTask Task { get; internal set; }
 
     public string BuildPath { get; }
 
@@ -38,9 +54,17 @@ public sealed class ProjectInfo
         Source = AssertDirectory(GetSourcePath(path, ModuleName));
     }
 
-    public static ProjectInfo Create(string path)
+    public static ProjectInfo Create(
+        string path,
+        Configuration configuration,
+        BuildTask task)
     {
-        ProjectInfo builder = new(path);
+        ProjectInfo builder = new(path)
+        {
+            Configuration = configuration,
+            Task = task
+        };
+
         builder.Manifest = GetManifest(builder);
         builder.ManifestVersion = GetManifestVersion(builder);
         builder.ReleasePath = GetReleasePath(
@@ -59,7 +83,7 @@ public sealed class ProjectInfo
         return xmlDocument
             .SelectSingleNode("Project/PropertyGroup/TargetFrameworks")
             .InnerText
-            .Split(new []{ ';' }, StringSplitOptions.RemoveEmptyEntries);
+            .Split([';'], StringSplitOptions.RemoveEmptyEntries);
     }
 
     private static string GetBuildPath(string path) =>
