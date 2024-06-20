@@ -101,7 +101,7 @@ public sealed class ProjectInfo
     private static Version? GetManifestVersion(ProjectInfo builder)
     {
         using PowerShell powershell = PowerShell.Create(RunspaceMode.CurrentRunspace);
-        Hashtable moduleInfo = powershell
+        Hashtable? moduleInfo = powershell
             .AddCommand("Import-PowerShellDataFile")
             .AddArgument(builder.Manifest?.FullName)
             .Invoke<Hashtable>()

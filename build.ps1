@@ -27,7 +27,7 @@ end {
             continue
         }
 
-        Write-Host "Installing build pre-req $($req.Key) as it is not installed"
+        Write-Host "Installing build pre-req $($req.Key)"
         $null = New-Item -Path $targetPath -ItemType Directory -Force
 
         $webParams = @{
