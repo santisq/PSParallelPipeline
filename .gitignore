@@ -271,3 +271,7 @@ tools/Modules
 test.settings.json
 tests/integration/.vagrant
 tests/integration/cert_setup
+tools/ProjectBuilder/output
+tools/ProjectBuilder/bin
+tools/ProjectBuilder/debug
+tools/ProjectBuilder/obj
