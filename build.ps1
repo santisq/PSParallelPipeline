@@ -45,7 +45,7 @@ $ErrorActionPreference = $prev
 
 $invokeBuildSplat = @{
     Task        = $Task
-    File        = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '*.build.ps1'))).FullName
+    File        = Convert-Path ([IO.Path]::Combine($PSScriptRoot, 'tools', 'InvokeBuild.ps1'))
     ProjectInfo = $projectInfo
 }
 Invoke-Build @invokeBuildSplat
