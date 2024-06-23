@@ -136,7 +136,7 @@ public sealed class Module
 
     private static string InitPrerequisitePath(DirectoryInfo root)
     {
-        string path = Path.Combine(root.FullName, "tools", "Modules");
+        string path = Path.Combine(root.Parent.FullName, "tools", "Modules");
         if (!Directory.Exists(path))
         {
             Directory.CreateDirectory(path);

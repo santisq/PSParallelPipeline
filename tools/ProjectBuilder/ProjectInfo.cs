@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
@@ -56,13 +57,14 @@ public sealed class ProjectInfo
         return builder;
     }
 
-    public void GetRequirements()
+    public IEnumerable<string> GetRequirements()
     {
         string req = Path.Combine(Root.FullName, "tools", "requiredModules.psd1");
-        if (File.Exists(req))
+        if (!File.Exists(req))
         {
-            Module.GetRequirements(req);
+            return [];
         }
+        return Module.GetRequirements(req);
     }
 
     public void CleanRelease()

@@ -38,8 +38,8 @@ if (-not ('ProjectBuilder.ProjectInfo' -as [type])) {
     }
 }
 
-$projectInfo = [ProjectBuilder.ProjectInfo]::Create($pwd, $Configuration)
-$projectInfo.GetRequirements($requirements) | Import-Module -DisableNameChecking -Force
+$projectInfo = [ProjectBuilder.ProjectInfo]::Create($PSScriptRoot, $Configuration)
+$projectInfo.GetRequirements() | Import-Module -DisableNameChecking -Force
 
 if (-not (dotnet tool list --global | Select-String coverlet.console -SimpleMatch)) {
     Write-Host 'Installing dotnet tool coverlet.console'
@@ -49,7 +49,8 @@ if (-not (dotnet tool list --global | Select-String coverlet.console -SimpleMatc
 $ErrorActionPreference = $prev
 
 $invokeBuildSplat = @{
-    Task          = $Task
-    File          = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '*.build.ps1'))).FullName
+    Task        = $Task
+    File        = (Get-Item ([IO.Path]::Combine($PSScriptRoot, '*.build.ps1'))).FullName
+    ProjectInfo = $projectInfo
 }
 Invoke-Build @invokeBuildSplat
