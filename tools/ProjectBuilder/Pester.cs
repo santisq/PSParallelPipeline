@@ -93,7 +93,7 @@ public sealed class Pester
             watchFolder,
             "--target", pwsh,
             "--targetargs", targetArgs,
-            "--output", ResultFile!,
+            "--output", Path.Combine(ResultPath, "Coverage.xml"),
             "--format", "cobertura"
         ]);
 
