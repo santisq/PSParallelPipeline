@@ -7,74 +7,81 @@ using System.Xml;
 
 namespace ProjectBuilder;
 
-public enum Configuration
-{
-    Debug,
-    Release
-}
-
-public enum BuildTask
-{
-    Build,
-    Test
-}
-
 public sealed class ProjectInfo
 {
-    public DirectoryInfo Project { get; }
+    public DirectoryInfo Root { get; }
 
-    public DirectoryInfo Module { get; }
-
-    public FileInfo? Manifest { get; internal set; }
-
-    public Version? ManifestVersion { get; internal set; }
-
-    public DirectoryInfo Source { get; }
+    public Module Module { get; }
 
     public Configuration Configuration { get; internal set; }
 
-    public BuildTask Task { get; internal set; }
+    public Documentation Documentation { get; internal set; }
 
-    public string BuildPath { get; }
-
-    public string? ReleasePath { get; internal set; }
-
-    public string ModuleName { get; }
-
-    public string[]? TargetFrameworks { get; internal set; }
-
-    public string TestFramework { get => TargetFrameworks.FirstOrDefault(); }
+    public Project Project { get; }
 
     private ProjectInfo(string path)
     {
-        Project = AssertDirectory(path);
-        BuildPath = GetBuildPath(path);
-        ModuleName = Path.GetFileNameWithoutExtension(path);
-        Module = AssertDirectory(GetModulePath(path));
-        Source = AssertDirectory(GetSourcePath(path, ModuleName));
+        Root = AssertDirectory(path);
+
+        Module = new Module(
+            directory: AssertDirectory(GetModulePath(path)),
+            name: Path.GetFileNameWithoutExtension(path));
+
+        Project = new Project(
+            source: AssertDirectory(GetSourcePath(path, Module.Name)),
+            build: GetBuildPath(path));
     }
 
     public static ProjectInfo Create(
         string path,
-        Configuration configuration,
-        BuildTask task)
+        Configuration configuration)
     {
         ProjectInfo builder = new(path)
         {
-            Configuration = configuration,
-            Task = task
+            Configuration = configuration
         };
-
-        builder.Manifest = GetManifest(builder);
-        builder.ManifestVersion = GetManifestVersion(builder);
-        builder.ReleasePath = GetReleasePath(
-            builder.BuildPath,
-            builder.ModuleName,
-            builder.ManifestVersion!);
-        builder.TargetFrameworks = GetTargetFrameworks(GetProjectFile(builder));
+        builder.Module.Manifest = GetManifest(builder);
+        builder.Module.Version = GetManifestVersion(builder);
+        builder.Project.Release = GetReleasePath(
+            builder.Project.Build,
+            builder.Module.Name,
+            builder.Module.Version!);
+        builder.Project.TargetFrameworks = GetTargetFrameworks(GetProjectFile(builder));
+        builder.Documentation = new Documentation
+        {
+            Source = Path.Combine(builder.Root.FullName, "docs", "en-US"),
+            Output = Path.Combine(builder.Project.Release, "en-US")
+        };
 
         return builder;
     }
+
+    public void GetRequirements()
+    {
+        string req = Path.Combine(Root.FullName, "tools", "requiredModules.psd1");
+        if (File.Exists(req))
+        {
+            Module.GetRequirements(req);
+        }
+    }
+
+    public void CleanRelease()
+    {
+        if (Directory.Exists(Project.Release))
+        {
+            Directory.Delete(Project.Release, recursive: true);
+        }
+        Directory.CreateDirectory(Project.Release);
+    }
+
+    public string[] GetBuildArgs() =>
+    [
+        "publish",
+        "--configuration", Configuration.ToString(),
+        "--verbosity", "q",
+        "-nologo",
+        $"-p:Version={Module.Version}"
+    ];
 
     private static string[] GetTargetFrameworks(string path)
     {
@@ -83,7 +90,7 @@ public sealed class ProjectInfo
         return xmlDocument
             .SelectSingleNode("Project/PropertyGroup/TargetFrameworks")
             .InnerText
-            .Split([';'], StringSplitOptions.RemoveEmptyEntries);
+            .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
     }
 
     private static string GetBuildPath(string path) =>
@@ -113,21 +120,21 @@ public sealed class ProjectInfo
     }
 
     private static FileInfo GetManifest(ProjectInfo builder) =>
-        builder.Module.EnumerateFiles("*.psd1").FirstOrDefault()
+        builder.Module.Root.EnumerateFiles("*.psd1").FirstOrDefault()
             ?? throw new FileNotFoundException(
-                $"Manifest file could not be found in '{builder.Project.FullName}'");
+                $"Manifest file could not be found in '{builder.Root.FullName}'");
 
     private static string GetProjectFile(ProjectInfo builder) =>
-        builder.Source.EnumerateFiles("*.csproj").FirstOrDefault()?.FullName
+        builder.Project.Source.EnumerateFiles("*.csproj").FirstOrDefault()?.FullName
             ?? throw new FileNotFoundException(
-                $"Project file could not be found in ''{builder.Source.FullName}'");
+                $"Project file could not be found in ''{builder.Project.Source.FullName}'");
 
     private static Version? GetManifestVersion(ProjectInfo builder)
     {
         using PowerShell powershell = PowerShell.Create(RunspaceMode.CurrentRunspace);
         Hashtable? moduleInfo = powershell
             .AddCommand("Import-PowerShellDataFile")
-            .AddArgument(builder.Manifest?.FullName)
+            .AddArgument(builder.Module.Manifest?.FullName)
             .Invoke<Hashtable>()
             .FirstOrDefault();
 

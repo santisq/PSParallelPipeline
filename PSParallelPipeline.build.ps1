@@ -2,60 +2,25 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug', 'Release')]
-    [string]
-    $Configuration = 'Debug'
+    [Parameter(Mandatory)]
+    [ProjectBuilder.ProjectInfo] $ProjectInfo
 )
 
-$modulePath = [Path]::Combine($PSScriptRoot, 'module')
-$manifestItem = Get-Item ([Path]::Combine($modulePath, '*.psd1'))
-$ModuleName = $manifestItem.BaseName
-$testModuleManifestSplat = @{
-    Path          = $manifestItem.FullName
-    ErrorAction   = 'Ignore'
-    WarningAction = 'Ignore'
-}
-$Manifest = Test-ModuleManifest @testModuleManifestSplat
-$Version = $Manifest.Version
-$BuildPath = [Path]::Combine($PSScriptRoot, 'output')
-$PowerShellPath = [Path]::Combine($PSScriptRoot, 'module')
-$CSharpPath = [Path]::Combine($PSScriptRoot, 'src', $ModuleName)
-$ReleasePath = [Path]::Combine($BuildPath, $ModuleName, $Version)
-$csProjPath = Convert-Path ([Path]::Combine($CSharpPath, '*.csproj')) | Select-Object -First 1
-$csharpProjectInfo = [xml]::new()
-$csharpProjectInfo.Load($csProjPath)
-$TargetFrameworks = $csharpProjectInfo.
-    SelectSingleNode('Project/PropertyGroup/TargetFrameworks').
-    InnerText.Split(';', [StringSplitOptions]::RemoveEmptyEntries)
-$PSFramework = $TargetFrameworks | Select-Object -First 1
-
 task Clean {
-    if (Test-Path $ReleasePath) {
-        Remove-Item $ReleasePath -Recurse -Force
-    }
-    New-Item -ItemType Directory $ReleasePath | Out-Null
+    $ProjectInfo.CleanRelease()
 }
 
 task BuildDocs {
-    $helpParams = @{
-        Path       = [Path]::Combine($PSScriptRoot, 'docs', 'en-US')
-        OutputPath = [Path]::Combine($ReleasePath, 'en-US')
-    }
-    New-ExternalHelp @helpParams | Out-Null
+    $helpParams = $ProjectInfo.Documentation.GetParams()
+    New-ExternalHelp @helpParams
 }
 
 task BuildManaged {
-    $arguments = @(
-        'publish'
-        '--configuration', $Configuration
-        '--verbosity', 'q'
-        '-nologo'
-        "-p:Version=$Version"
-    )
+    $arguments = $ProjectInfo.GetBuildArgs()
+    Push-Location -LiteralPath $ProjectInfo.Project.Source.FullName
 
-    Push-Location -LiteralPath $CSharpPath
     try {
-        foreach ($framework in $TargetFrameworks) {
+        foreach ($framework in $ProjectInfo.TargetFrameworks.TargetFrameworks) {
             Write-Host "Compiling for $framework"
             dotnet @arguments --framework $framework
 
