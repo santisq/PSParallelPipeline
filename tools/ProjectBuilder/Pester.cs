@@ -27,7 +27,7 @@ public sealed class Pester
         }
     }
 
-    public string? ResultPath { get => _testsExist ? Path.Combine(ResultPath, "TestResults") : null; }
+    public string? ResultPath { get => _testsExist ? Path.Combine(_info.Project.Build, "TestResults") : null; }
 
     public string? ResultFile { get => _testsExist ? Path.Combine(ResultPath, "Pester.xml") : null; }
 
@@ -55,8 +55,10 @@ public sealed class Pester
         }
     }
 
-    public string GetTestArgs(Version version)
+    public string[] GetTestArgs(Version version)
     {
+        CreateResultPath();
+
         List<string> arguments = [
             "-NoProfile",
             "-NonInteractive",
@@ -80,7 +82,7 @@ public sealed class Pester
         string watchFolder = Path.Combine(_info.Project.Release, "bin", _info.Project.TestFramework);
         string sourceMappingFile = Path.Combine(ResultPath, "CoverageSourceMapping.txt");
 
-        if (version is not { Major: 7, Minor: > 0 })
+        if (version is not { Major: >= 7, Minor: > 0 })
         {
             targetArgs = re.Replace(targetArgs, "\"");
             watchFolder = re.Replace(watchFolder, "\"");
@@ -103,12 +105,11 @@ public sealed class Pester
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") is "true")
         {
             arguments.AddRange([ "--source-mapping-file", sourceMappingFile ]);
-            CreateResultPath();
             File.WriteAllText(
                 sourceMappingFile,
                 $"|{_info.Root.FullName}{Path.DirectorySeparatorChar}=/_/");
         }
 
-        return string.Join("\" \"", [.. arguments]);
+        return [.. arguments];
     }
 }

@@ -86,7 +86,7 @@ task PesterTests {
         dotnet tool install --global coverlet.console
     }
 
-    coverlet $ProjectInfo.Pester.GetTestArgs()
+    coverlet $ProjectInfo.Pester.GetTestArgs($PSVersionTable.PSVersion)
 
     if ($LASTEXITCODE) {
         throw 'Pester failed tests'
