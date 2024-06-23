@@ -18,7 +18,7 @@ task BuildManaged {
     Push-Location -LiteralPath $ProjectInfo.Project.Source.FullName
 
     try {
-        foreach ($framework in $ProjectInfo.TargetFrameworks.TargetFrameworks) {
+        foreach ($framework in $ProjectInfo.Project.TargetFrameworks) {
             Write-Host "Compiling for $framework"
             dotnet @arguments --framework $framework
 

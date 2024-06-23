@@ -32,7 +32,9 @@ public sealed class Project
     {
         if (TargetFrameworks is null)
         {
-            throw new ArgumentNullException("TargetFrameworks is null.", nameof(TargetFrameworks));
+            throw new ArgumentNullException(
+                "TargetFrameworks is null.",
+                nameof(TargetFrameworks));
         }
 
         foreach (string framework in TargetFrameworks)
