@@ -17,7 +17,7 @@ Describe PSParallelPipeline {
         }
 
         It 'Error' {
-            1 | Invoke-Parallel { Write-Error $_ } 2>&1 |
+            1 | Invoke-Parallel { Write-Error $_ } -ErrorAction Continue 2>&1 |
                 Should -BeOfType ([ErrorRecord])
         }
 
