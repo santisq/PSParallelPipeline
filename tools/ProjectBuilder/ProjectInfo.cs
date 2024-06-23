@@ -26,11 +26,13 @@ public sealed class ProjectInfo
 
         Module = new Module(
             directory: AssertDirectory(GetModulePath(path)),
-            name: Path.GetFileNameWithoutExtension(path));
+            name: Path.GetFileNameWithoutExtension(path),
+            info: this);
 
         Project = new Project(
             source: AssertDirectory(GetSourcePath(path, Module.Name)),
-            build: GetBuildPath(path));
+            build: GetBuildPath(path),
+            info: this);
     }
 
     public static ProjectInfo Create(

@@ -12,7 +12,7 @@ task Clean {
 
 task BuildDocs {
     $helpParams = $ProjectInfo.Documentation.GetParams()
-    New-ExternalHelp @helpParams
+    $null = New-ExternalHelp @helpParams
 }
 
 task BuildManaged {
@@ -35,39 +35,15 @@ task BuildManaged {
 }
 
 task CopyToRelease {
-    $copyParams = @{
-        Path        = [Path]::Combine($PowerShellPath, '*')
-        Destination = $ReleasePath
-        Recurse     = $true
-        Force       = $true
-    }
-    Copy-Item @copyParams
-
-    foreach ($framework in $TargetFrameworks) {
-        $buildFolder = [Path]::Combine($CSharpPath, 'bin', $Configuration, $framework, 'publish')
-        $binFolder = [Path]::Combine($ReleasePath, 'bin', $framework)
-        if (-not (Test-Path -LiteralPath $binFolder)) {
-            New-Item -Path $binFolder -ItemType Directory | Out-Null
-        }
-        Copy-Item ([Path]::Combine($buildFolder, '*')) -Destination $binFolder -Recurse
-    }
+    $ProjectInfo.Module.CopyToRelease()
+    $ProjectInfo.Project.CopyToRelease()
 }
 
 task Package {
-    $nupkgPath = [Path]::Combine($BuildPath, "$ModuleName.$Version*.nupkg")
-    if (Test-Path $nupkgPath) {
-        Remove-Item $nupkgPath -Force
-    }
-
-    $repoParams = @{
-        Name               = 'LocalRepo'
-        SourceLocation     = $BuildPath
-        PublishLocation    = $BuildPath
-        InstallationPolicy = 'Trusted'
-    }
+    $ProjectInfo.Project.ClearNugetPackage()
+    $repoParams = $ProjectInfo.Project.GetPSRepoParams()
 
     if (Get-PSRepository -Name $repoParams.Name -ErrorAction SilentlyContinue) {
-
         Unregister-PSRepository -Name $repoParams.Name
     }
 

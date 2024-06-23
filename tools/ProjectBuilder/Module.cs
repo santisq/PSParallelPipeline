@@ -22,18 +22,28 @@ public sealed class Module
 
     public string PreRequisitePath { get; }
 
+    private string? Release { get => _info.Project.Release; }
+
     private readonly UriBuilder _builder = new(_base);
 
     private const string _base = "https://www.powershellgallery.com";
 
     private const string _path = "api/v2/package/{0}/{1}";
 
-    internal Module(DirectoryInfo directory, string name)
+    private readonly ProjectInfo _info;
+
+    internal Module(
+        DirectoryInfo directory,
+        string name,
+        ProjectInfo info)
     {
         Root = directory;
         Name = name;
         PreRequisitePath = InitPrerequisitePath(Root);
+        _info = info;
     }
+
+    public void CopyToRelease() => Root.CopyRecursive(Release);
 
     internal IEnumerable<string> GetRequirements(string path)
     {
