@@ -61,7 +61,7 @@ public sealed class Project
     {
         string nugetPath = Path.Combine(
             Build,
-            $"{_info.Module.Name}.{_info.Module.Version}.*.nupkg");
+            $"{_info.Module.Name}.{_info.Module.Version}.nupkg");
 
         if (File.Exists(nugetPath))
         {

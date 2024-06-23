@@ -20,6 +20,27 @@ public sealed class ProjectInfo
 
     public Project Project { get; }
 
+    public Pester Pester { get; }
+
+    public string? AnalyzerPath
+    {
+        get
+        {
+            _analyzerPath ??= Path.Combine(
+                Root.FullName,
+                "ScriptAnalyzerSettings.psd1");
+
+            if (File.Exists(_analyzerPath))
+            {
+                return _analyzerPath;
+            }
+
+            return null;
+        }
+    }
+
+    private string? _analyzerPath;
+
     private ProjectInfo(string path)
     {
         Root = AssertDirectory(path);
@@ -33,6 +54,8 @@ public sealed class ProjectInfo
             source: AssertDirectory(GetSourcePath(path, Module.Name)),
             build: GetBuildPath(path),
             info: this);
+
+        Pester = new(this);
     }
 
     public static ProjectInfo Create(
@@ -86,6 +109,14 @@ public sealed class ProjectInfo
         "-nologo",
         $"-p:Version={Module.Version}"
     ];
+
+    public Hashtable GetAnalyzerParams() => new()
+    {
+        ["Path"] = Project.Release,
+        ["Settings"] = AnalyzerPath,
+        ["Recurse"] = true,
+        ["ErrorAction"] = "SilentlyContinue"
+    };
 
     private static string[] GetTargetFrameworks(string path)
     {

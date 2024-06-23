@@ -1,15 +1,12 @@
 ﻿[CmdletBinding()]
 param (
     [Parameter(Mandatory)]
-    [String]
-    $TestPath,
+    [String] $TestPath,
 
     [Parameter(Mandatory)]
-    [String]
-    $OutputFile
+    [String] $OutputFile
 )
 
-# $ErrorActionPreference = 'Stop'
 $requirements = Import-PowerShellDataFile ([IO.Path]::Combine($PSScriptRoot, 'requiredModules.psd1'))
 foreach ($req in $requirements.GetEnumerator()) {
     $importModuleSplat = @{
@@ -27,15 +24,9 @@ foreach ($req in $requirements.GetEnumerator()) {
         Name       = 'Architecture'
         Expression = {
             switch ([IntPtr]::Size) {
-                4 {
-                    'x86'
-                }
-                8 {
-                    'x64'
-                }
-                default {
-                    'Unknown'
-                }
+                4 { 'x86' }
+                8 { 'x64' }
+                default { 'Unknown' }
             }
         }
     } |

@@ -41,11 +41,6 @@ if (-not ('ProjectBuilder.ProjectInfo' -as [type])) {
 $projectInfo = [ProjectBuilder.ProjectInfo]::Create($PSScriptRoot, $Configuration)
 $projectInfo.GetRequirements() | Import-Module -DisableNameChecking -Force
 
-if (-not (dotnet tool list --global | Select-String coverlet.console -SimpleMatch)) {
-    Write-Host 'Installing dotnet tool coverlet.console'
-    dotnet tool install --global coverlet.console
-}
-
 $ErrorActionPreference = $prev
 
 $invokeBuildSplat = @{
