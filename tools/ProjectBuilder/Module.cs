@@ -32,6 +32,8 @@ public sealed class Module
 
     private readonly ProjectInfo _info;
 
+    private Hashtable? _req;
+
     internal Module(
         DirectoryInfo directory,
         string name,
@@ -47,20 +49,15 @@ public sealed class Module
 
     internal IEnumerable<string> GetRequirements(string path)
     {
-        using PowerShell powerShell = PowerShell.Create(RunspaceMode.CurrentRunspace);
-        Hashtable? req = powerShell
-            .AddCommand("Import-PowerShellDataFile")
-            .AddArgument(path)
-            .Invoke<Hashtable>()
-            .FirstOrDefault();
+        _req ??= ImportRequirements(path);
 
-        if (req is { Count: 0 })
+        if (_req is { Count: 0 })
         {
             return [];
         }
 
-        List<ModuleDownload> modules = new(req.Count);
-        foreach (DictionaryEntry entry in req)
+        List<ModuleDownload> modules = new(_req.Count);
+        foreach (DictionaryEntry entry in _req)
         {
             modules.Add(new ModuleDownload
             {
@@ -70,6 +67,16 @@ public sealed class Module
         }
 
         return DownloadModules([.. modules]);
+    }
+
+    private static Hashtable ImportRequirements(string path)
+    {
+        using PowerShell powerShell = PowerShell.Create(RunspaceMode.CurrentRunspace);
+        return powerShell
+            .AddCommand("Import-PowerShellDataFile")
+            .AddArgument(path)
+            .Invoke<Hashtable>()
+            .FirstOrDefault();
     }
 
     private string[] DownloadModules(ModuleDownload[] modules)
