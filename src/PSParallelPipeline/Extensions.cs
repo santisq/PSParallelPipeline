@@ -39,7 +39,7 @@ internal static class Extensions
     {
         foreach (DictionaryEntry pair in variables)
         {
-            cmdlet.ThrowIfUsingValueIsScriptBlock(pair.Value);
+            cmdlet.ThrowIfVariableIsScriptBlock(pair.Value);
             initialSessionState.Variables.Add(new SessionStateVariableEntry(
                 name: LanguagePrimitives.ConvertTo<string>(pair.Key),
                 value: pair.Value,
