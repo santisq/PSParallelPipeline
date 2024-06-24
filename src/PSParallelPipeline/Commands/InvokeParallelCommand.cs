@@ -77,11 +77,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     protected override void ProcessRecord()
     {
-        if (_worker is null)
-        {
-            return;
-        }
-
+        Dbg.Assert(_worker is not null);
         this.ThrowIfInputObjectIsScriptBlock(InputObject);
 
         try
@@ -103,16 +99,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception exception)
         {
-            exception.WriteProcessOutputError(this);
+            exception.WriteUnspecifiedError(this);
         }
     }
 
     protected override void EndProcessing()
     {
-        if (_worker is null)
-        {
-            return;
-        }
+        Dbg.Assert(_worker is not null);
 
         try
         {
@@ -135,7 +128,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception exception)
         {
-            exception.WriteEndProcessingError(this);
+            exception.WriteUnspecifiedError(this);
         }
     }
 
