@@ -237,5 +237,22 @@ Describe PSParallelPipeline {
 
             $dict[$PID].ProcessName | Should -Be (Get-Process -Id $PID).ProcessName
         }
+
+        It 'Stops processing on CTRL+C' {
+            try {
+                $timer = [Stopwatch]::StartNew()
+                $ps = [powershell]::Create([RunspaceMode]::NewRunspace).
+                    AddScript('0..10 | Invoke-Parallel { Start-Sleep 1; $_ }')
+                $async = $ps.BeginInvoke()
+                Start-Sleep 1
+                $async = $ps.BeginStop($ps.EndStop, $null)
+                while (-not $async.AsyncWaitHandle.WaitOne(200)) { }
+                $timer.Stop()
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.5))
+            }
+            finally {
+                $ps.Dispose()
+            }
+        }
     }
 }
