@@ -244,7 +244,6 @@ Describe PSParallelPipeline {
                 $ps = [powershell]::Create([RunspaceMode]::NewRunspace).
                     AddScript('0..10 | Invoke-Parallel { Start-Sleep 1; $_ }')
                 $async = $ps.BeginInvoke()
-                Start-Sleep 1
 
                 if ($IsCoreCLR) {
                     $async = $ps.BeginStop($ps.EndStop, $null)
@@ -255,7 +254,7 @@ Describe PSParallelPipeline {
 
                 while (-not $async.AsyncWaitHandle.WaitOne(200)) { }
                 $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.5))
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1))
             }
             finally {
                 $ps.Dispose()
