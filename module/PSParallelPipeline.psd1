@@ -11,7 +11,7 @@
     RootModule        = 'bin/netstandard2.0/PSParallelPipeline.dll'
 
     # Version number of this module.
-    ModuleVersion     = '1.1.7'
+    ModuleVersion     = '1.1.8'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
