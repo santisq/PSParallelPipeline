@@ -266,14 +266,8 @@ Describe PSParallelPipeline {
                     AddScript('1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100')
                     $ps.Runspace = $rs
                     $timer = [Stopwatch]::StartNew()
-                    $async = $ps.BeginInvoke()
-
-                    if ($IsCoreCLR) {
-                        $async = $ps.BeginStop($ps.EndStop, $null)
-                    }
-                    else {
-                        $ps.Stop()
-                    }
+                    $null = $ps.BeginInvoke()
+                    $ps.Stop()
 
                     while ($ps.InvocationStateInfo.State -eq [PSInvocationState]::Running) {
                         Start-Sleep -Milliseconds 50
