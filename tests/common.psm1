@@ -20,7 +20,10 @@ function Assert-RunspaceCount {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [scriptblock] $ScriptBlock
+        [scriptblock] $ScriptBlock,
+
+        [Parameter()]
+        [int] $WaitSeconds = 5
     )
 
     try {
@@ -28,7 +31,7 @@ function Assert-RunspaceCount {
         & $ScriptBlock
     }
     finally {
-        Start-Sleep 5
+        Start-Sleep $WaitSeconds
         Get-Runspace |
             Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
     }

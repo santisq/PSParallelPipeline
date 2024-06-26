@@ -137,6 +137,12 @@ Describe PSParallelPipeline {
 
     Context 'TimeoutSeconds Parameter' {
         It 'Stops processing after the specified seconds' {
+            $wait = 5
+            if (-not $IsCoreCLR) {
+                # because pwsh 5.1 fucking sucks!
+                $wait = 10
+            }
+
             Assert-RunspaceCount {
                 $timer = [Stopwatch]::StartNew()
                 {
@@ -150,7 +156,7 @@ Describe PSParallelPipeline {
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.2))
-            }
+            } -WaitSeconds $wait
         }
     }
 
