@@ -8,9 +8,9 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
-    internal PSOutputStreams PSOutputStreams { get => _woker.OutputStreams; }
+    internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
 
-    private CancellationToken Token { get => _woker.Token; }
+    private CancellationToken Token { get => _worker.Token; }
 
     private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
@@ -28,12 +28,14 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly PoolSettings _settings;
 
-    private readonly Worker _woker;
+    private readonly Worker _worker;
+
+    private readonly List<Runspace> _createdRunspaces = [];
 
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
         _settings = settings;
-        _woker = worker;
+        _worker = worker;
         _pool = new Queue<Runspace>(MaxRunspaces);
         _tasks = new List<Task<PSTask>>(MaxRunspaces);
     }
@@ -42,6 +44,7 @@ internal sealed class RunspacePool : IDisposable
     {
         Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
         rs.Open();
+        _createdRunspaces.Add(rs);
         return rs;
     }
 
@@ -122,9 +125,12 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _pool)
+        foreach (Runspace runspace in _createdRunspaces)
         {
-            runspace.Dispose();
+            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
+            {
+                runspace.Dispose();
+            }
         }
 
         GC.SuppressFinalize(this);

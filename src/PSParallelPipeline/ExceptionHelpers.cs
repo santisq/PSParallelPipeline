@@ -15,10 +15,6 @@ internal static class ExceptionHelpers
             ErrorCategory.OperationTimeout,
             cmdlet));
 
-    // internal static void WriteEndProcessingError(this Exception exception, PSCmdlet cmdlet) =>
-    //     cmdlet.WriteError(new ErrorRecord(
-    //         exception, "EndProcessingOutput", ErrorCategory.NotSpecified, cmdlet));
-
     internal static void WriteUnspecifiedError(this Exception exception, PSCmdlet cmdlet) =>
         cmdlet.WriteError(new ErrorRecord(
             exception, "UnspecifiedCmdletError", ErrorCategory.NotSpecified, cmdlet));
