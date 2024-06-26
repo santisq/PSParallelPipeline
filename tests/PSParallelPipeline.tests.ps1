@@ -150,7 +150,6 @@ Describe PSParallelPipeline {
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.2))
-                Start-Sleep 5
             }
         }
     }

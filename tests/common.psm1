@@ -28,6 +28,7 @@ function Assert-RunspaceCount {
         & $ScriptBlock
     }
     finally {
+        Start-Sleep 5
         Get-Runspace |
             Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
     }
