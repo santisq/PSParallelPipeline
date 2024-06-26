@@ -19,32 +19,34 @@ internal sealed class PSTask : IDisposable
 
     private readonly PowerShell _powershell;
 
-    private readonly PSDataStreams _streams;
+    private readonly PSDataStreams _internalStreams;
 
     private readonly RunspacePool _pool;
 
     private PSTask(RunspacePool runspacePool)
     {
         _powershell = PowerShell.Create();
-        _streams = _powershell.Streams;
+        _internalStreams = _powershell.Streams;
         _pool = runspacePool;
     }
 
     static internal PSTask Create(RunspacePool runspacePool)
     {
         PSTask ps = new(runspacePool);
-        HookStreams(ps, runspacePool.PSOutputStreams);
+        HookStreams(ps._internalStreams, runspacePool.PSOutputStreams);
         return ps;
     }
 
-    private static void HookStreams(PSTask ps, PSOutputStreams outputStreams)
+    private static void HookStreams(
+        PSDataStreams streams,
+        PSOutputStreams outputStreams)
     {
-        ps._streams.Error = outputStreams.Error;
-        ps._streams.Debug = outputStreams.Debug;
-        ps._streams.Information = outputStreams.Information;
-        ps._streams.Progress = outputStreams.Progress;
-        ps._streams.Verbose = outputStreams.Verbose;
-        ps._streams.Warning = outputStreams.Warning;
+        streams.Error = outputStreams.Error;
+        streams.Debug = outputStreams.Debug;
+        streams.Information = outputStreams.Information;
+        streams.Progress = outputStreams.Progress;
+        streams.Verbose = outputStreams.Verbose;
+        streams.Warning = outputStreams.Warning;
     }
 
     private static Task InvokePowerShellAsync(
