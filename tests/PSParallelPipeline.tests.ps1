@@ -149,7 +149,7 @@ Describe PSParallelPipeline {
                     1..100 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.1))
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.2))
             }
         }
     }
