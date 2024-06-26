@@ -96,7 +96,7 @@ internal sealed class PSTask : IDisposable
         {
             task._powershell.EndStop(e);
             task.Runspace.Dispose();
-            // task.Dispose();
+            task.Dispose();
         }, null);
     };
 

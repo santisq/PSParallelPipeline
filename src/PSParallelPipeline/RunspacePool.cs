@@ -30,7 +30,7 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly Worker _worker;
 
-    private readonly List<Runspace> _createdRunspaces = [];
+    private readonly List<Runspace> _createdRunspaces;
 
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
@@ -38,6 +38,7 @@ internal sealed class RunspacePool : IDisposable
         _worker = worker;
         _pool = new Queue<Runspace>(MaxRunspaces);
         _tasks = new List<Task<PSTask>>(MaxRunspaces);
+        _createdRunspaces = new List<Runspace>(MaxRunspaces);
     }
 
     private Runspace CreateRunspace()

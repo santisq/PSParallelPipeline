@@ -15,3 +15,20 @@ function Complete {
             $null).CompletionMatches
     }
 }
+
+function Assert-RunspaceCount {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock] $ScriptBlock
+    )
+
+    try {
+        $count = @(Get-Runspace).Count
+        & $ScriptBlock
+    }
+    finally {
+        Get-Runspace |
+            Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
+    }
+}

@@ -137,11 +137,20 @@ Describe PSParallelPipeline {
 
     Context 'TimeoutSeconds Parameter' {
         It 'Stops processing after the specified seconds' {
-            $timer = [Stopwatch]::StartNew()
-            { 0..5 | Invoke-Parallel { Start-Sleep 10 } -TimeoutSeconds 2 -ErrorAction Stop } |
-                Should -Throw -ExceptionType ([TimeoutException])
-            $timer.Stop()
-            $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.1))
+            Assert-RunspaceCount {
+                $timer = [Stopwatch]::StartNew()
+                {
+                    $invokeParallelSplat = @{
+                        ThrottleLimit  = 100
+                        TimeOutSeconds = 2
+                        ErrorAction    = 'Stop'
+                        ScriptBlock    = { Start-Sleep 10 }
+                    }
+                    1..100 | Invoke-Parallel @invokeParallelSplat
+                } | Should -Throw -ExceptionType ([TimeoutException])
+                $timer.Stop()
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.1))
+            }
         }
     }
 
@@ -153,6 +162,9 @@ Describe PSParallelPipeline {
             Complete 'Invoke-Parallel -Functions Compl' |
                 ForEach-Object ListItemText |
                 Should -Contain 'Complete'
+
+            Complete 'Invoke-Parallel -Functions NotExist' |
+                Should -BeNullOrEmpty
         }
     }
 
@@ -186,12 +198,12 @@ Describe PSParallelPipeline {
 
     Context 'Script Block Assertions' {
         It 'Should throw on passed-in Script Block via $using: scope modifier' {
-            { $sb = { }; 1..1 | Invoke-Parallel { $using:sb } } |
+            { $sb = { 1 + 1 }; 1..1 | Invoke-Parallel { & $using:sb } } |
                 Should -Throw -ExceptionType ([PSArgumentException])
         }
 
         It 'Should throw on passed-in Script Block via -Variables parameter' {
-            { $sb = { }; 1..1 | Invoke-Parallel { $sb } -Variables @{ sb = $sb } } |
+            { $sb = { 1 + 1 }; 1..1 | Invoke-Parallel { & $sb } -Variables @{ sb = $sb } } |
                 Should -Throw -ExceptionType ([PSArgumentException])
         }
 
@@ -202,6 +214,21 @@ Describe PSParallelPipeline {
     }
 
     Context 'Invoke-Parallel' {
+        BeforeAll {
+            $testOne = {
+                1..100 | Invoke-Parallel {
+                    0..10 | ForEach-Object { Start-Sleep 1; $_ }
+                } -ThrottleLimit 100 | Select-Object -First 5
+            }
+
+            $testTwo = {
+                1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 |
+                    Select-Object -First 10
+            }
+
+            $testOne, $testTwo | Out-Null
+        }
+
         It 'Process in parallel' {
             $timer = [Stopwatch]::StartNew()
             1..5 | Invoke-Parallel { Start-Sleep 1 }
@@ -210,23 +237,15 @@ Describe PSParallelPipeline {
         }
 
         It 'Supports streaming output' {
-            Measure-Command {
-                0..10 | Invoke-Parallel {
-                    0..10 | ForEach-Object {
-                        Start-Sleep 1
-                        $_
-                    }
-                } | Select-Object -First 5 |
-                Should -HaveCount 5
-            } | ForEach-Object TotalSeconds |
-            Should -BeLessThan 2
+            Assert-RunspaceCount {
+                Measure-Command { & $testOne | Should -HaveCount 5 } |
+                    ForEach-Object TotalSeconds |
+                    Should -BeLessThan 2
 
-            Measure-Command {
-                0..10 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 2 |
-                    Select-Object -First 10 |
-                    Should -HaveCount 10
-            } | ForEach-Object TotalSeconds |
-            Should -BeLessThan 6
+                Measure-Command { & $testTwo | Should -HaveCount 10 } |
+                    ForEach-Object TotalSeconds |
+                    Should -BeLessThan 6
+            }
         }
 
         It 'Can add items to a single thread instance' {
@@ -239,25 +258,34 @@ Describe PSParallelPipeline {
         }
 
         It 'Stops processing on CTRL+C' {
-            try {
-                $timer = [Stopwatch]::StartNew()
-                $ps = [powershell]::Create([RunspaceMode]::NewRunspace).
-                    AddScript('0..10 | Invoke-Parallel { Start-Sleep 1; $_ }')
-                $async = $ps.BeginInvoke()
+            Assert-RunspaceCount {
+                try {
+                    $rs = [runspacefactory]::CreateRunspace()
+                    $rs.Open()
+                    $ps = [powershell]::Create().
+                    AddScript('1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100')
+                    $ps.Runspace = $rs
+                    $timer = [Stopwatch]::StartNew()
+                    $async = $ps.BeginInvoke()
 
-                if ($IsCoreCLR) {
-                    $async = $ps.BeginStop($ps.EndStop, $null)
-                }
-                else {
-                    $ps.Stop()
-                }
+                    if ($IsCoreCLR) {
+                        $async = $ps.BeginStop($ps.EndStop, $null)
+                    }
+                    else {
+                        $ps.Stop()
+                    }
 
-                while (-not $async.AsyncWaitHandle.WaitOne(200)) { }
-                $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1))
-            }
-            finally {
-                $ps.Dispose()
+                    while ($ps.InvocationStateInfo.State -eq [PSInvocationState]::Running) {
+                        Start-Sleep -Milliseconds 50
+                    }
+
+                    $timer.Stop()
+                    $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1))
+                }
+                finally {
+                    $ps.Dispose()
+                    $rs.Dispose()
+                }
             }
         }
     }
