@@ -87,18 +87,12 @@ internal sealed class PSTask : IDisposable
 
     internal async Task<PSTask> InvokeAsync()
     {
-        _pool.AddTask(this);
         using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
         await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         return this;
     }
 
-    private static Action CancelCallback(PSTask task) => delegate
-    {
-        task.Dispose();
-        task.Runspace.Dispose();
-        task._pool.RemoveTask(task);
-    };
+    private static Action CancelCallback(PSTask task) => task.Dispose;
 
     public void Dispose()
     {
