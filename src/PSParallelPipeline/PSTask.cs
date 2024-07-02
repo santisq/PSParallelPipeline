@@ -96,13 +96,13 @@ internal sealed class PSTask : IDisposable
     private static Action CancelCallback(PSTask task) => delegate
     {
         task.Dispose();
+        task.Runspace.Dispose();
         task._pool.RemoveTask(task);
     };
 
     public void Dispose()
     {
         _powershell.Dispose();
-        _pool.RemoveTask(this);
         GC.SuppressFinalize(this);
     }
 }

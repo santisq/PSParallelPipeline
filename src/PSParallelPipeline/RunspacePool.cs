@@ -21,52 +21,51 @@ internal sealed class RunspacePool : IDisposable
 
     private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
-    private readonly ConcurrentQueue<Runspace> _pool;
+    private readonly Queue<Runspace> _pool;
 
     private readonly List<Task<PSTask>> _tasks;
 
-    private readonly ConcurrentDictionary<Guid, PSTask> _psTasks;
+    private readonly Dictionary<Guid, PSTask> _psTasks;
 
     private readonly PoolSettings _settings;
 
     private readonly Worker _worker;
 
-    private readonly List<Runspace> _createdRunspaces;
+    // private readonly List<Runspace> _createdRunspaces;
 
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
         _settings = settings;
         _worker = worker;
-        _pool = new ConcurrentQueue<Runspace>();
+        _pool = new Queue<Runspace>(MaxRunspaces);
         _tasks = new List<Task<PSTask>>(MaxRunspaces);
-        _createdRunspaces = new List<Runspace>(MaxRunspaces);
-        _psTasks = new ConcurrentDictionary<Guid, PSTask>(MaxRunspaces, MaxRunspaces);
+        // _createdRunspaces = new List<Runspace>(MaxRunspaces);
+        _psTasks = new Dictionary<Guid, PSTask>(MaxRunspaces);
     }
 
     internal void AddTask(PSTask task) => _psTasks[task.Id] = task;
 
-    internal void RemoveTask(PSTask task) => _psTasks.TryRemove(task.Id, out _);
+    internal void RemoveTask(PSTask task) => _psTasks.Remove(task.Id);
 
     private Runspace CreateRunspace()
     {
         Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
         rs.Open();
-        _createdRunspaces.Add(rs);
+        // _createdRunspaces.Add(rs);
         return rs;
     }
 
     private async Task<Runspace> GetRunspaceAsync()
     {
-        if (_pool.TryDequeue(out Runspace runspace))
+        if (_pool.Count > 0)
         {
-            return runspace;
+            return _pool.Dequeue();
         }
 
-        if (_psTasks.Count == MaxRunspaces)
+        if (_psTasks.Count >= MaxRunspaces)
         {
             await ProcessTaskAsync();
-            _pool.TryDequeue(out runspace);
-            return runspace;
+            return _pool.Dequeue();
         }
 
         return CreateRunspace();
@@ -120,7 +119,11 @@ internal sealed class RunspacePool : IDisposable
         }
         finally
         {
-            ps?.Dispose();
+            if (ps is not null)
+            {
+                ps.Dispose();
+                RemoveTask(ps);
+            }
         }
     }
 
@@ -129,12 +132,13 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (KeyValuePair<Guid, PSTask> pair in _psTasks)
+        foreach ((Guid _, PSTask task) in _psTasks)
         {
-            pair.Value.Dispose();
+            task.Dispose();
+            task.Runspace.Dispose();
         }
 
-        foreach (Runspace runspace in _createdRunspaces)
+        foreach (Runspace runspace in _pool)
         {
             runspace.Dispose();
         }
