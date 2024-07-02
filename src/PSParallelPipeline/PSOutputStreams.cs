@@ -30,12 +30,12 @@ internal sealed class PSOutputStreams : IDisposable
     internal PSOutputStreams(Worker worker)
     {
         _worker = worker;
-        SetStreams(this);
+        SetStreamHandlers(this);
     }
 
     internal void AddOutput(PSOutputData data) => OutputPipe.Add(data, Token);
 
-    private static void SetStreams(PSOutputStreams outputStreams)
+    private static void SetStreamHandlers(PSOutputStreams outputStreams)
     {
         outputStreams.Success.DataAdded += (s, e) =>
         {

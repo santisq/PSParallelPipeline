@@ -11,17 +11,19 @@ internal sealed class PSTask : IDisposable
 {
     private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
 
+    private readonly PowerShell _powershell;
+
+    private readonly PSDataStreams _internalStreams;
+
+    private readonly RunspacePool _pool;
+
     internal Runspace Runspace
     {
         get => _powershell.Runspace;
         set => _powershell.Runspace = value;
     }
 
-    private readonly PowerShell _powershell;
-
-    private readonly PSDataStreams _internalStreams;
-
-    private readonly RunspacePool _pool;
+    internal Guid Id { get => _powershell.InstanceId; }
 
     private PSTask(RunspacePool runspacePool)
     {
@@ -85,6 +87,7 @@ internal sealed class PSTask : IDisposable
 
     internal async Task<PSTask> InvokeAsync()
     {
+        _pool.AddTask(this);
         using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
         await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         return this;
@@ -92,12 +95,9 @@ internal sealed class PSTask : IDisposable
 
     private static Action CancelCallback(PSTask task) => delegate
     {
-        task._powershell.BeginStop((e) =>
-        {
-            task._powershell.EndStop(e);
-            task.Runspace.Dispose();
-            task.Dispose();
-        }, null);
+        task.Dispose();
+        task.Runspace.Dispose();
+        task._pool.RemoveTask(task);
     };
 
     public void Dispose()

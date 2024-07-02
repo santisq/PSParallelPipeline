@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Management.Automation.Runspaces;
 using System.Threading;
@@ -20,17 +21,17 @@ internal sealed class RunspacePool : IDisposable
 
     private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
-    private int _totalMade;
-
     private readonly Queue<Runspace> _pool;
 
     private readonly List<Task<PSTask>> _tasks;
+
+    private readonly Dictionary<Guid, PSTask> _psTasks;
 
     private readonly PoolSettings _settings;
 
     private readonly Worker _worker;
 
-    private readonly List<Runspace> _createdRunspaces;
+    // private readonly List<Runspace> _createdRunspaces;
 
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
@@ -38,14 +39,19 @@ internal sealed class RunspacePool : IDisposable
         _worker = worker;
         _pool = new Queue<Runspace>(MaxRunspaces);
         _tasks = new List<Task<PSTask>>(MaxRunspaces);
-        _createdRunspaces = new List<Runspace>(MaxRunspaces);
+        // _createdRunspaces = new List<Runspace>(MaxRunspaces);
+        _psTasks = new Dictionary<Guid, PSTask>(MaxRunspaces);
     }
+
+    internal void AddTask(PSTask task) => _psTasks[task.Id] = task;
+
+    internal void RemoveTask(PSTask task) => _psTasks.Remove(task.Id);
 
     private Runspace CreateRunspace()
     {
         Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
         rs.Open();
-        _createdRunspaces.Add(rs);
+        // _createdRunspaces.Add(rs);
         return rs;
     }
 
@@ -56,14 +62,12 @@ internal sealed class RunspacePool : IDisposable
             return _pool.Dequeue();
         }
 
-        if (_totalMade == MaxRunspaces)
+        if (_psTasks.Count >= MaxRunspaces)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
             return _pool.Dequeue();
         }
 
-        _totalMade++;
         return CreateRunspace();
     }
 
@@ -72,7 +76,6 @@ internal sealed class RunspacePool : IDisposable
         while (_tasks.Count > 0)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
         }
     }
 
@@ -93,7 +96,6 @@ internal sealed class RunspacePool : IDisposable
 
         try
         {
-            Token.ThrowIfCancellationRequested();
             Task<PSTask> awaiter = await Task.WhenAny(_tasks);
             _tasks.Remove(awaiter);
             ps = await awaiter;
@@ -117,7 +119,11 @@ internal sealed class RunspacePool : IDisposable
         }
         finally
         {
-            ps?.Dispose();
+            if (ps is not null)
+            {
+                ps.Dispose();
+                RemoveTask(ps);
+            }
         }
     }
 
@@ -126,12 +132,15 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _createdRunspaces)
+        foreach ((Guid _, PSTask task) in _psTasks)
         {
-            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
-            {
-                runspace.Dispose();
-            }
+            task.Dispose();
+            task.Runspace.Dispose();
+        }
+
+        foreach (Runspace runspace in _pool)
+        {
+            runspace.Dispose();
         }
 
         GC.SuppressFinalize(this);
