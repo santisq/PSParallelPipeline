@@ -21,8 +21,6 @@ internal sealed class RunspacePool : IDisposable
 
     private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
-    private int _totalMade;
-
     private readonly ConcurrentQueue<Runspace> _pool;
 
     private readonly List<Task<PSTask>> _tasks;
@@ -64,15 +62,13 @@ internal sealed class RunspacePool : IDisposable
             return runspace;
         }
 
-        if (_totalMade == MaxRunspaces)
+        if (_psTasks.Count == MaxRunspaces)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
             _pool.TryDequeue(out runspace);
             return runspace;
         }
 
-        _totalMade++;
         return CreateRunspace();
     }
 
@@ -81,7 +77,6 @@ internal sealed class RunspacePool : IDisposable
         while (_tasks.Count > 0)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
         }
     }
 
@@ -102,7 +97,6 @@ internal sealed class RunspacePool : IDisposable
 
         try
         {
-            Token.ThrowIfCancellationRequested();
             Task<PSTask> awaiter = await Task.WhenAny(_tasks);
             _tasks.Remove(awaiter);
             ps = await awaiter;
@@ -135,22 +129,14 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        while (_psTasks.Count > 0)
+        foreach (KeyValuePair<Guid, PSTask> pair in _psTasks)
         {
-            foreach (KeyValuePair<Guid, PSTask> pair in _psTasks)
-            {
-                pair.Value.Dispose();
-            }
-
-            Thread.Sleep(200);
+            pair.Value.Dispose();
         }
 
         foreach (Runspace runspace in _createdRunspaces)
         {
-            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
-            {
-                runspace.Dispose();
-            }
+            runspace.Dispose();
         }
 
         GC.SuppressFinalize(this);

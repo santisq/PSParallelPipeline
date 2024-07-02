@@ -93,20 +93,16 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    private static Action CancelCallback(PSTask task) => async delegate
+    private static Action CancelCallback(PSTask task) => delegate
     {
-        await Task.Factory.FromAsync(
-            beginMethod: task._powershell.BeginStop,
-            endMethod: task._powershell.EndStop,
-            state: null);
-
+        task.Dispose();
         task._pool.RemoveTask(task);
     };
 
     public void Dispose()
     {
-        _pool.RemoveTask(this);
         _powershell.Dispose();
+        _pool.RemoveTask(this);
         GC.SuppressFinalize(this);
     }
 }
