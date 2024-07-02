@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Management.Automation.Runspaces;
 using System.Threading;
@@ -22,9 +23,11 @@ internal sealed class RunspacePool : IDisposable
 
     private int _totalMade;
 
-    private readonly Queue<Runspace> _pool;
+    private readonly ConcurrentQueue<Runspace> _pool;
 
     private readonly List<Task<PSTask>> _tasks;
+
+    private readonly ConcurrentDictionary<Guid, PSTask> _psTasks;
 
     private readonly PoolSettings _settings;
 
@@ -36,10 +39,15 @@ internal sealed class RunspacePool : IDisposable
     {
         _settings = settings;
         _worker = worker;
-        _pool = new Queue<Runspace>(MaxRunspaces);
+        _pool = new ConcurrentQueue<Runspace>();
         _tasks = new List<Task<PSTask>>(MaxRunspaces);
         _createdRunspaces = new List<Runspace>(MaxRunspaces);
+        _psTasks = new ConcurrentDictionary<Guid, PSTask>(MaxRunspaces, MaxRunspaces);
     }
+
+    internal void AddTask(PSTask task) => _psTasks[task.Id] = task;
+
+    internal void RemoveTask(PSTask task) => _psTasks.TryRemove(task.Id, out _);
 
     private Runspace CreateRunspace()
     {
@@ -51,16 +59,17 @@ internal sealed class RunspacePool : IDisposable
 
     private async Task<Runspace> GetRunspaceAsync()
     {
-        if (_pool.Count > 0)
+        if (_pool.TryDequeue(out Runspace runspace))
         {
-            return _pool.Dequeue();
+            return runspace;
         }
 
         if (_totalMade == MaxRunspaces)
         {
             await ProcessTaskAsync();
             Token.ThrowIfCancellationRequested();
-            return _pool.Dequeue();
+            _pool.TryDequeue(out runspace);
+            return runspace;
         }
 
         _totalMade++;
@@ -126,6 +135,16 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
+        while (_psTasks.Count > 0)
+        {
+            foreach (KeyValuePair<Guid, PSTask> pair in _psTasks)
+            {
+                pair.Value.Dispose();
+            }
+
+            Thread.Sleep(200);
+        }
+
         foreach (Runspace runspace in _createdRunspaces)
         {
             if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })

@@ -64,12 +64,10 @@ internal sealed class Worker : IDisposable
     {
         while (!_inputQueue.IsCompleted)
         {
-            if (!_inputQueue.TryTake(out PSTask ps, 0, Token))
+            if (_inputQueue.TryTake(out PSTask ps, 200, Token))
             {
-                continue;
+                await _runspacePool.EnqueueAsync(ps);
             }
-
-            await _runspacePool.EnqueueAsync(ps);
         }
 
         await _runspacePool.ProcessTasksAsync();
