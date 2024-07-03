@@ -108,10 +108,6 @@ internal sealed class RunspacePool : IDisposable
             _pool.Enqueue(runspace);
             pSTask = await awaiter;
         }
-        catch (Exception _) when (_ is TaskCanceledException or OperationCanceledException)
-        {
-            throw;
-        }
         catch (Exception exception)
         {
             PSOutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
