@@ -14,17 +14,11 @@ internal sealed class RunspacePool : IDisposable
 
     private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
-    private int MaxRunspaces { get => _settings.MaxRunspaces; }
-
     private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
-    private int _totalMade;
-
     private readonly Queue<Runspace> _pool;
-
-    private readonly List<Task<PSTask>> _tasks;
 
     private readonly PoolSettings _settings;
 
@@ -32,13 +26,15 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly List<Runspace> _createdRunspaces;
 
+    private readonly TaskManager _manager;
+
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
         _settings = settings;
         _worker = worker;
-        _pool = new Queue<Runspace>(MaxRunspaces);
-        _tasks = new List<Task<PSTask>>(MaxRunspaces);
-        _createdRunspaces = new List<Runspace>(MaxRunspaces);
+        _pool = new Queue<Runspace>(_settings.MaxRunspaces);
+        _createdRunspaces = new List<Runspace>(_settings.MaxRunspaces);
+        _manager = new(_settings.MaxRunspaces);
     }
 
     private Runspace CreateRunspace()
@@ -56,60 +52,51 @@ internal sealed class RunspacePool : IDisposable
             return _pool.Dequeue();
         }
 
-        if (_totalMade == MaxRunspaces)
+        if (_manager.ShouldProcess)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
             return _pool.Dequeue();
         }
 
-        _totalMade++;
         return CreateRunspace();
     }
 
     internal async Task ProcessTasksAsync()
     {
-        while (_tasks.Count > 0)
+        while (_manager.HasMoreTasks)
         {
             await ProcessTaskAsync();
-            Token.ThrowIfCancellationRequested();
         }
     }
 
-    internal async Task EnqueueAsync(PSTask task)
+    internal async Task EnqueueAsync(PSTask psTask)
     {
         if (UsingStatements is { Count: > 0 })
         {
-            task.AddUsingStatements(UsingStatements);
+            psTask.AddUsingStatements(UsingStatements);
         }
 
-        task.Runspace = await GetRunspaceAsync();
-        _tasks.Add(task.InvokeAsync());
+        psTask.Runspace = await GetRunspaceAsync();
+        _manager.Enqueue(psTask);
     }
 
     private async Task ProcessTaskAsync()
     {
-        PSTask? ps = null;
+        PSTask? pSTask = null;
 
         try
         {
-            Token.ThrowIfCancellationRequested();
-            Task<PSTask> awaiter = await Task.WhenAny(_tasks);
-            _tasks.Remove(awaiter);
-            ps = await awaiter;
-            Runspace runspace = ps.Runspace;
+            Task<PSTask> awaiter = await _manager.WhenAny();
+            Runspace runspace = _manager.Dequeue(awaiter);
 
             if (UseNewRunspace)
             {
-                ps.Runspace.Dispose();
+                runspace.Dispose();
                 runspace = CreateRunspace();
             }
 
             _pool.Enqueue(runspace);
-        }
-        catch (Exception _) when (_ is TaskCanceledException or OperationCanceledException)
-        {
-            throw;
+            pSTask = await awaiter;
         }
         catch (Exception exception)
         {
@@ -117,7 +104,7 @@ internal sealed class RunspacePool : IDisposable
         }
         finally
         {
-            ps?.Dispose();
+            pSTask?.Dispose();
         }
     }
 
@@ -128,10 +115,7 @@ internal sealed class RunspacePool : IDisposable
     {
         foreach (Runspace runspace in _createdRunspaces)
         {
-            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
-            {
-                runspace.Dispose();
-            }
+            runspace.Dispose();
         }
 
         GC.SuppressFinalize(this);

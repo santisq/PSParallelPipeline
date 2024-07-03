@@ -137,12 +137,6 @@ Describe PSParallelPipeline {
 
     Context 'TimeoutSeconds Parameter' {
         It 'Stops processing after the specified seconds' {
-            $wait = 5
-            if (-not $IsCoreCLR) {
-                # because pwsh 5.1 fucking sucks!
-                $wait = 10
-            }
-
             Assert-RunspaceCount {
                 $timer = [Stopwatch]::StartNew()
                 {
@@ -156,7 +150,7 @@ Describe PSParallelPipeline {
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.2))
-            } -WaitSeconds $wait
+            }
         }
     }
 
@@ -174,7 +168,7 @@ Describe PSParallelPipeline {
         }
     }
 
-    Context '$using: scope modifier Support' {
+    Context '$using: scope modifier' {
         It 'Allows passed-in variables through the $using: scope modifier' {
             $message = 'Hello world from {0:D2}'
             $items = 0..10 | Invoke-Parallel { $using:message -f $_ } |
@@ -232,7 +226,14 @@ Describe PSParallelPipeline {
                     Select-Object -First 10
             }
 
-            $testOne, $testTwo | Out-Null
+            $testThree = {
+                1..100 |
+                    ForEach-Object { $_; Start-Sleep -Milliseconds 200 } |
+                    Invoke-Parallel { $_ } |
+                    Select-Object -First 10
+            }
+
+            $testOne, $testTwo, $testThree | Out-Null
         }
 
         It 'Process in parallel' {
@@ -251,6 +252,10 @@ Describe PSParallelPipeline {
                 Measure-Command { & $testTwo | Should -HaveCount 10 } |
                     ForEach-Object TotalSeconds |
                     Should -BeLessThan 6
+
+                Measure-Command { & $testThree | Should -HaveCount 10 } |
+                    ForEach-Object TotalSeconds |
+                    Should -BeLessThan 3
             }
         }
 
@@ -262,31 +267,79 @@ Describe PSParallelPipeline {
 
             $dict[$PID].ProcessName | Should -Be (Get-Process -Id $PID).ProcessName
         }
+    }
 
-        It 'Stops processing on CTRL+C' {
+    Context 'Runspace Disposal Assertions' {
+        It 'Disposes on CTRL+C' {
+            $rs = [runspacefactory]::CreateRunspace()
+            $rs.Open()
+
             Assert-RunspaceCount {
+                param([runspace] $runspace)
+
+                $scripts = @(
+                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
+                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 -UseNewRunspace'
+                )
+
                 try {
-                    $rs = [runspacefactory]::CreateRunspace()
-                    $rs.Open()
-                    $ps = [powershell]::Create().
-                    AddScript('1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100')
-                    $ps.Runspace = $rs
-                    $timer = [Stopwatch]::StartNew()
-                    $null = $ps.BeginInvoke()
-                    $ps.Stop()
-
-                    while ($ps.InvocationStateInfo.State -eq [PSInvocationState]::Running) {
-                        Start-Sleep -Milliseconds 50
+                    $ps = [powershell]::Create()
+                    $ps.Runspace = $runspace
+                    $scripts | ForEach-Object {
+                        $ps = $ps.AddScript($script).AddStatement()
                     }
-
+                    $timer = [Stopwatch]::StartNew()
+                    $task = $ps.BeginInvoke()
+                    Start-Sleep 1
+                    $ps.Stop()
+                    while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
                     $timer.Stop()
-                    $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1))
+                    $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
                 }
                 finally {
                     $ps.Dispose()
-                    $rs.Dispose()
                 }
+            } -ArgumentList $rs -TestCount 10
+
+            $rs.Dispose()
+        }
+
+        It 'Disposes on PipelineStoppedException' {
+            $invokeParallelSplat = @{
+                ThrottleLimit = 11
+                ScriptBlock   = { $_ }
             }
+
+            Assert-RunspaceCount {
+                0..10 | Invoke-Parallel @invokeParallelSplat |
+                    Select-Object -First 1
+            } -TestCount 100
+
+            Assert-RunspaceCount {
+                $invokeParallelSplat['UseNewRunspace'] = $true
+                0..10 | Invoke-Parallel @invokeParallelSplat |
+                    Select-Object -First 10
+            } -TestCount 100
+        }
+
+        It 'Disposes on OperationCanceledException' {
+            $invokeParallelSplat = @{
+                ThrottleLimit  = 300
+                TimeOutSeconds = 1
+                ScriptBlock    = { Start-Sleep 1 }
+            }
+
+            Assert-RunspaceCount {
+                { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
+                    Should -Throw
+            } -TestCount 50
+
+            Assert-RunspaceCount {
+                $invokeParallelSplat['UseNewRunspace'] = $true
+                $invokeParallelSplat['ThrottleLimit'] = 1001
+                { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
+                    Should -Throw
+            } -TestCount 50
         }
     }
 }

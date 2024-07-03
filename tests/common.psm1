@@ -23,16 +23,33 @@ function Assert-RunspaceCount {
         [scriptblock] $ScriptBlock,
 
         [Parameter()]
-        [int] $WaitSeconds = 5
+        [int] $WaitSeconds,
+
+        [Parameter()]
+        [object[]] $ArgumentList,
+
+        [Parameter()]
+        [ValidateRange(1, [int]::MaxValue)]
+        [int] $TestCount = 1
     )
 
-    try {
-        $count = @(Get-Runspace).Count
-        & $ScriptBlock
-    }
-    finally {
-        Start-Sleep $WaitSeconds
-        Get-Runspace |
-            Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
+    $count = @(Get-Runspace).Count
+    for ($i = 0; $i -lt $TestCount; $i++) {
+        try {
+            if ($ArgumentList) {
+                $null = & $ScriptBlock @ArgumentList
+                continue
+            }
+
+            $null = & $ScriptBlock
+        }
+        finally {
+            if ($WaitSeconds) {
+                Start-Sleep $WaitSeconds
+            }
+
+            Get-Runspace |
+                Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
+        }
     }
 }
