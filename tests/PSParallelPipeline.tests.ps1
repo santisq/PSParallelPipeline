@@ -278,7 +278,7 @@ Describe PSParallelPipeline {
                 param([runspace] $runspace)
 
                 $scripts = @(
-                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100'
+                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
                     '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 -UseNewRunspace'
                 )
 
@@ -318,7 +318,7 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 $invokeParallelSplat['UseNewRunspace'] = $true
                 0..10 | Invoke-Parallel @invokeParallelSplat |
-                    Select-Object -First 1
+                    Select-Object -First 10
             } -TestCount 100
         }
 
@@ -336,6 +336,7 @@ Describe PSParallelPipeline {
 
             Assert-RunspaceCount {
                 $invokeParallelSplat['UseNewRunspace'] = $true
+                $invokeParallelSplat['ThrottleLimit'] = 1001
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw
             } -TestCount 50

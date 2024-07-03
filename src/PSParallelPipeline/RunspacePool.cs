@@ -14,17 +14,11 @@ internal sealed class RunspacePool : IDisposable
 
     private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
-    private int MaxRunspaces { get => _settings.MaxRunspaces; }
-
     private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
     private readonly Queue<Runspace> _pool;
-
-    private readonly List<Task<PSTask>> _tasks;
-
-    private readonly Dictionary<int, Runspace> _assignedRunspaces;
 
     private readonly PoolSettings _settings;
 
@@ -32,14 +26,15 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly List<Runspace> _createdRunspaces;
 
+    private readonly TaskManager _manager;
+
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
         _settings = settings;
         _worker = worker;
-        _pool = new Queue<Runspace>(MaxRunspaces);
-        _tasks = new List<Task<PSTask>>(MaxRunspaces);
-        _createdRunspaces = new List<Runspace>(MaxRunspaces);
-        _assignedRunspaces = new Dictionary<int, Runspace>(MaxRunspaces);
+        _pool = new Queue<Runspace>(_settings.MaxRunspaces);
+        _createdRunspaces = new List<Runspace>(_settings.MaxRunspaces);
+        _manager = new(_settings.MaxRunspaces);
     }
 
     private Runspace CreateRunspace()
@@ -57,7 +52,7 @@ internal sealed class RunspacePool : IDisposable
             return _pool.Dequeue();
         }
 
-        if (_tasks.Count == MaxRunspaces)
+        if (_manager.ShouldProcess)
         {
             await ProcessTaskAsync();
             return _pool.Dequeue();
@@ -68,7 +63,7 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task ProcessTasksAsync()
     {
-        while (_tasks.Count > 0)
+        while (_manager.HasMoreTasks)
         {
             await ProcessTaskAsync();
         }
@@ -81,11 +76,8 @@ internal sealed class RunspacePool : IDisposable
             psTask.AddUsingStatements(UsingStatements);
         }
 
-        Runspace runspace = await GetRunspaceAsync();
-        psTask.Runspace = runspace;
-        Task<PSTask> task = psTask.InvokeAsync();
-        _assignedRunspaces[task.Id] = runspace;
-        _tasks.Add(task);
+        psTask.Runspace = await GetRunspaceAsync();
+        _manager.Enqueue(psTask);
     }
 
     private async Task ProcessTaskAsync()
@@ -94,10 +86,8 @@ internal sealed class RunspacePool : IDisposable
 
         try
         {
-            Task<PSTask> awaiter = await Task.WhenAny(_tasks);
-            Runspace runspace = _assignedRunspaces[awaiter.Id];
-            _assignedRunspaces.Remove(awaiter.Id);
-            _tasks.Remove(awaiter);
+            Task<PSTask> awaiter = await _manager.WhenAny();
+            Runspace runspace = _manager.Dequeue(awaiter);
 
             if (UseNewRunspace)
             {
