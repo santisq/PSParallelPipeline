@@ -23,8 +23,6 @@ internal sealed class PSTask : IDisposable
         set => _powershell.Runspace = value;
     }
 
-    internal Guid Id { get => _powershell.InstanceId; }
-
     private PSTask(RunspacePool runspacePool)
     {
         _powershell = PowerShell.Create();
@@ -92,7 +90,11 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    private static Action CancelCallback(PSTask task) => task.Dispose;
+    private static Action CancelCallback(PSTask task) => delegate
+    {
+        task.Dispose();
+        task.Runspace.Dispose();
+    };
 
     public void Dispose()
     {
