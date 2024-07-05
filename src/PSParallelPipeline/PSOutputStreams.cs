@@ -7,9 +7,9 @@ namespace PSParallelPipeline;
 
 internal sealed class PSOutputStreams : IDisposable
 {
-    internal BlockingCollection<PSOutputData> OutputPipe { get => _worker.OutputPipe; }
+    private BlockingCollection<PSOutputData> OutputPipe { get => _worker.OutputPipe; }
 
-    internal CancellationToken Token { get => _worker.Token; }
+    private CancellationToken Token { get => _worker.Token; }
 
     internal PSDataCollection<PSObject> Success { get; } = [];
 
