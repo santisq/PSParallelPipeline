@@ -100,7 +100,7 @@ internal sealed class RunspacePool : IDisposable
         }
         catch (Exception exception)
         {
-            PSOutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+            PSOutputStreams.WriteError(exception.CreateProcessingTaskError(this));
         }
         finally
         {
