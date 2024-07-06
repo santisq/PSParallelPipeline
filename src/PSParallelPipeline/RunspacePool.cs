@@ -25,7 +25,7 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly ConcurrentDictionary<Guid, Task> _tasks;
 
-    internal bool UseNewRunspace { get => _settings.UseNewRunspace; }
+    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
 
