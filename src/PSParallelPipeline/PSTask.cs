@@ -17,6 +17,8 @@ internal sealed class PSTask : IDisposable
 
     private readonly RunspacePool _pool;
 
+    internal Guid Id { get => _powershell.InstanceId; }
+
     internal Runspace Runspace
     {
         get => _powershell.Runspace;
@@ -83,17 +85,18 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    internal async Task<PSTask> InvokeAsync()
+    internal async Task InvokeAsync()
     {
         try
         {
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
-            return this;
         }
         finally
         {
             _pool.PushRunspace(Runspace);
+            _pool.RemoveTask(this);
+            Dispose();
         }
     }
 

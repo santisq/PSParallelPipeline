@@ -23,9 +23,9 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly Worker _worker;
 
-    private readonly List<Task<PSTask>> _tasks;
+    private readonly ConcurrentDictionary<Guid, Task> _tasks;
 
-    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
+    internal bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
 
@@ -34,7 +34,7 @@ internal sealed class RunspacePool : IDisposable
         _settings = settings;
         _worker = worker;
         _pool = new ConcurrentQueue<Runspace>();
-        _tasks = new List<Task<PSTask>>(MaxRunspaces);
+        _tasks = new ConcurrentDictionary<Guid, Task>(MaxRunspaces, MaxRunspaces);
     }
 
     private Runspace CreateRunspace()
@@ -55,18 +55,14 @@ internal sealed class RunspacePool : IDisposable
         _pool.Enqueue(runspace);
     }
 
+    internal void RemoveTask(PSTask psTask) => _tasks.TryRemove(psTask.Id, out _);
+
     private Runspace GetRunspace()
     {
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
         }
-
-        // if (_tasks.Count == MaxRunspaces)
-        // {
-        //     await ProcessTaskAsync();
-        //     return _pool.Dequeue();
-        // }
 
         return CreateRunspace();
     }
@@ -86,32 +82,25 @@ internal sealed class RunspacePool : IDisposable
             await ProcessTaskAsync();
         }
 
-        if (UsingStatements is { Count: > 0 })
+        if (UsingStatements.Count > 0)
         {
             psTask.AddUsingStatements(UsingStatements);
         }
 
         psTask.Runspace = GetRunspace();
-        _tasks.Add(psTask.InvokeAsync());
+        _tasks[psTask.Id] = psTask.InvokeAsync();
     }
 
     private async Task ProcessTaskAsync()
     {
-        PSTask? pSTask = null;
-
         try
         {
-            Task<PSTask> awaiter = await Task.WhenAny(_tasks);
-            _tasks.Remove(awaiter);
-            pSTask = await awaiter;
+            Task awaiter = await Task.WhenAny(_tasks.Values);
+            await awaiter;
         }
         catch (Exception exception)
         {
             PSOutputStreams.WriteError(exception.CreateProcessingTaskError(this));
-        }
-        finally
-        {
-            pSTask?.Dispose();
         }
     }
 
