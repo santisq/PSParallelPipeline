@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Management.Automation;
 using System.Management.Automation.Language;
@@ -139,5 +140,11 @@ internal static class Extensions
         return extractionAst
             .GetScriptBlock()
             .InvokeReturnAsIs();
+    }
+
+    internal static Runspace Dequeue(this ConcurrentQueue<Runspace> queue)
+    {
+        queue.TryDequeue(out Runspace runspace);
+        return runspace;
     }
 }
