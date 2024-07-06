@@ -89,8 +89,13 @@ internal sealed class PSTask : IDisposable
     {
         try
         {
+            Runspace = _pool.GetRunspace();
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
+        }
+        catch (Exception exception)
+        {
+            OutputStreams.WriteError(exception.CreateProcessingTaskError(this));
         }
         finally
         {

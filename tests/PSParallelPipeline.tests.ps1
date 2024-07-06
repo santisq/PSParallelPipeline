@@ -344,14 +344,14 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw
-            } -TestCount 50 -WaitSeconds 1
+            } -TestCount 50 # -WaitSeconds 1
 
             Assert-RunspaceCount {
                 $invokeParallelSplat['UseNewRunspace'] = $true
                 $invokeParallelSplat['ThrottleLimit'] = 1001
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw
-            } -TestCount 50 -WaitSeconds 1
+            } -TestCount 50 # -WaitSeconds 1
         }
     }
 }
