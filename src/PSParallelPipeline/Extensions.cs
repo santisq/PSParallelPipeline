@@ -141,10 +141,4 @@ internal static class Extensions
             .GetScriptBlock()
             .InvokeReturnAsIs();
     }
-
-    internal static Runspace Dequeue(this ConcurrentQueue<Runspace> queue)
-    {
-        queue.TryDequeue(out Runspace runspace);
-        return runspace;
-    }
 }
