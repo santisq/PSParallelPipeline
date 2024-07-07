@@ -11,12 +11,6 @@ internal sealed class Worker : IDisposable
 {
     private readonly BlockingCollection<PSTask> _inputQueue = [];
 
-    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
-
-    internal CancellationToken Token { get => _cts.Token; }
-
-    internal PSOutputStreams OutputStreams { get; }
-
     private readonly CancellationTokenSource _cts;
 
     private readonly RunspacePool _runspacePool;
@@ -28,6 +22,12 @@ internal sealed class Worker : IDisposable
         ["Name"] = "_"
     };
 
+    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
+
+    internal CancellationToken Token { get => _cts.Token; }
+
+    internal PSOutputStreams OutputStreams { get; }
+
     internal Worker(PoolSettings settings)
     {
         _cts = new CancellationTokenSource();
@@ -35,11 +35,17 @@ internal sealed class Worker : IDisposable
         _runspacePool = new RunspacePool(settings, this);
     }
 
-    internal void Wait() => _worker?.GetAwaiter().GetResult();
+    internal void Wait()
+    {
+        _runspacePool.ProcessAllAsync().GetAwaiter().GetResult();
+        _worker?.GetAwaiter().GetResult();
+    }
 
     internal void WaitOperationCanceled() =>
         _worker?
-            .ContinueWith(e => { }, TaskContinuationOptions.OnlyOnCanceled)
+            .ContinueWith(
+                _ => { _runspacePool.ProcessAllAsync().GetAwaiter().GetResult(); },
+                TaskContinuationOptions.OnlyOnCanceled)
             .Wait();
 
     internal void StopAndWait()
@@ -79,7 +85,7 @@ internal sealed class Worker : IDisposable
             }
         }
 
-        await _runspacePool.ProcessTasksAsync();
+        await _runspacePool.ProcessAllAsync();
         OutputPipe.CompleteAdding();
     }, cancellationToken: Token);
 

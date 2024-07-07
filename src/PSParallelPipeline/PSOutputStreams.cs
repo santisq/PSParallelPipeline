@@ -118,6 +118,11 @@ internal sealed class PSOutputStreams : IDisposable
     {
         Success.Dispose();
         Error.Dispose();
+        Debug.Dispose();
+        Information.Dispose();
+        Progress.Dispose();
+        Verbose.Dispose();
+        Warning.Dispose();
         OutputPipe.Dispose();
         GC.SuppressFinalize(this);
     }

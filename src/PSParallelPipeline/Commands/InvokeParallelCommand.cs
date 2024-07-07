@@ -115,7 +115,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             {
                 ProcessOutput(data);
             }
-
             _worker.Wait();
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)

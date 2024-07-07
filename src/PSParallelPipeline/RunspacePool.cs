@@ -44,18 +44,22 @@ internal sealed class RunspacePool : IDisposable
         return rs;
     }
 
-    internal void PushRunspace(Runspace runspace)
+    internal void RemoveTask(PSTask psTask)
     {
+        psTask.Dispose();
+        Runspace runspace = psTask.Runspace;
+
         if (UseNewRunspace)
         {
             runspace.Dispose();
-            return;
+        }
+        else
+        {
+            _pool.Enqueue(runspace);
         }
 
-        _pool.Enqueue(runspace);
+        _tasks.TryRemove(psTask.Id, out _);
     }
-
-    internal void RemoveTask(PSTask psTask) => _tasks.TryRemove(psTask.Id, out _);
 
     internal Runspace GetRunspace()
     {
@@ -67,11 +71,11 @@ internal sealed class RunspacePool : IDisposable
         return CreateRunspace();
     }
 
-    internal async Task ProcessTasksAsync()
+    internal async Task ProcessAllAsync()
     {
         while (_tasks.Count > 0)
         {
-            await ProcessTaskAsync();
+            await ProcessAnyAsync();
         }
     }
 
@@ -79,7 +83,7 @@ internal sealed class RunspacePool : IDisposable
     {
         if (_tasks.Count == MaxRunspaces)
         {
-            await ProcessTaskAsync();
+            await ProcessAnyAsync();
         }
 
         if (UsingStatements.Count > 0)
@@ -90,10 +94,17 @@ internal sealed class RunspacePool : IDisposable
         _tasks[psTask.Id] = psTask.InvokeAsync();
     }
 
-    private async Task ProcessTaskAsync()
+    private async Task ProcessAnyAsync()
     {
-        Task task = await Task.WhenAny(_tasks.Values);
-        await task;
+        try
+        {
+            Task task = await Task.WhenAny(_tasks.Values);
+            await task;
+        }
+        catch (Exception exception)
+        {
+            PSOutputStreams.WriteError(exception.CreateProcessingTaskError(this));
+        }
     }
 
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
