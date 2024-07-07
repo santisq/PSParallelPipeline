@@ -35,23 +35,17 @@ internal sealed class Worker : IDisposable
         _runspacePool = new RunspacePool(settings, this);
     }
 
-    internal void Wait()
-    {
-        _runspacePool.ProcessAllAsync().GetAwaiter().GetResult();
-        _worker?.GetAwaiter().GetResult();
-    }
+    internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void WaitOperationCanceled() =>
+    internal void OperationCanceledWait() =>
         _worker?
-            .ContinueWith(
-                _ => { _runspacePool.ProcessAllAsync().GetAwaiter().GetResult(); },
-                TaskContinuationOptions.OnlyOnCanceled)
+            .ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled)
             .Wait();
 
-    internal void StopAndWait()
+    internal void WaitOnCancel()
     {
         _cts.Cancel();
-        Wait();
+        OperationCanceledWait();
     }
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);

@@ -47,18 +47,15 @@ internal sealed class RunspacePool : IDisposable
     internal void RemoveTask(PSTask psTask)
     {
         psTask.Dispose();
-        Runspace runspace = psTask.Runspace;
+        _tasks.TryRemove(psTask.Id, out _);
 
         if (UseNewRunspace)
         {
-            runspace.Dispose();
-        }
-        else
-        {
-            _pool.Enqueue(runspace);
+            psTask.Runspace.Dispose();
+            return;
         }
 
-        _tasks.TryRemove(psTask.Id, out _);
+        _pool.Enqueue(psTask.Runspace);
     }
 
     internal Runspace GetRunspace()
@@ -69,14 +66,6 @@ internal sealed class RunspacePool : IDisposable
         }
 
         return CreateRunspace();
-    }
-
-    internal async Task ProcessAllAsync()
-    {
-        while (_tasks.Count > 0)
-        {
-            await ProcessAnyAsync();
-        }
     }
 
     internal async Task EnqueueAsync(PSTask psTask)
@@ -91,7 +80,16 @@ internal sealed class RunspacePool : IDisposable
             psTask.AddUsingStatements(UsingStatements);
         }
 
+        psTask.Runspace = GetRunspace();
         _tasks[psTask.Id] = psTask.InvokeAsync();
+    }
+
+    internal async Task ProcessAllAsync()
+    {
+        while (_tasks.Count > 0)
+        {
+            await ProcessAnyAsync();
+        }
     }
 
     private async Task ProcessAnyAsync()
@@ -112,7 +110,7 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _pool)
+        while (_pool.TryDequeue(out Runspace runspace))
         {
             runspace.Dispose();
         }

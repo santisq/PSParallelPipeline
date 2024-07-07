@@ -9,13 +9,13 @@ namespace PSParallelPipeline;
 
 internal sealed class PSTask : IDisposable
 {
-    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
-
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _internalStreams;
 
     private readonly RunspacePool _pool;
+
+    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
 
     internal Guid Id { get => _powershell.InstanceId; }
 
@@ -89,25 +89,20 @@ internal sealed class PSTask : IDisposable
     {
         try
         {
-            Runspace = _pool.GetRunspace();
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
-        // catch (Exception exception)
-        // {
-        //     OutputStreams.WriteError(exception.CreateProcessingTaskError(this));
-        // }
         finally
         {
             _pool.RemoveTask(this);
         }
     }
 
-    private static Action CancelCallback(PSTask task) => task.Dispose;
-    // {
-    //     task.Dispose();
-    //     task.Runspace.Dispose();
-    // };
+    private static Action CancelCallback(PSTask task) => delegate
+    {
+        task.Dispose();
+        task.Runspace.Dispose();
+    };
 
     public void Dispose()
     {
