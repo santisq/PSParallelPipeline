@@ -37,16 +37,12 @@ internal sealed class Worker : IDisposable
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void OperationCanceledWait() =>
+    internal void WaitOnCancel() =>
         _worker?
             .ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled)
             .Wait();
 
-    internal void WaitOnCancel()
-    {
-        _cts.Cancel();
-        OperationCanceledWait();
-    }
+    internal void Cancel() => _cts.Cancel();
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
 

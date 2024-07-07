@@ -94,7 +94,8 @@ internal sealed class PSTask : IDisposable
         }
         finally
         {
-            _pool.RemoveTask(this);
+            _pool.CompleteTask(this);
+            _pool.Release();
         }
     }
 

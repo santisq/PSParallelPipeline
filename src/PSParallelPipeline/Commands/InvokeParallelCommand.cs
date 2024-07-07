@@ -90,12 +90,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
+            _worker.Cancel();
             _worker.WaitOnCancel();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.OperationCanceledWait();
+            _worker.WaitOnCancel();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -119,12 +120,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
+            _worker.Cancel();
             _worker.WaitOnCancel();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.OperationCanceledWait();
+            _worker.WaitOnCancel();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -146,7 +148,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 break;
 
             case Type.Debug:
-                WriteDebug((string)data.Output);
+                DebugRecord debug = (DebugRecord)data.Output;
+                WriteDebug(debug.Message);
                 break;
 
             case Type.Information:
@@ -158,16 +161,18 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 break;
 
             case Type.Verbose:
-                WriteVerbose((string)data.Output);
+                VerboseRecord verbose = (VerboseRecord)data.Output;
+                WriteVerbose(verbose.Message);
                 break;
 
             case Type.Warning:
-                WriteWarning((string)data.Output);
+                WarningRecord warning = (WarningRecord)data.Output;
+                WriteWarning(warning.Message);
                 break;
         }
     }
 
-    protected override void StopProcessing() => _worker?.WaitOnCancel();
+    protected override void StopProcessing() => _worker?.Cancel();
 
     public void Dispose()
     {
