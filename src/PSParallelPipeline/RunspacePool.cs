@@ -62,6 +62,13 @@ internal sealed class RunspacePool : IDisposable
         _pool.Enqueue(psTask.Runspace);
     }
 
+    internal void CancelTask(PSTask psTask)
+    {
+        psTask.Dispose();
+        psTask.Runspace.Dispose();
+        _pool.Enqueue(psTask.Runspace);
+    }
+
     private async Task<Runspace> GetRunspaceAsync()
     {
         await _semaphoreSlim.WaitAsync(Token);
@@ -111,9 +118,12 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _pool)
+        while (_pool.TryDequeue(out Runspace runspace))
         {
-            runspace.Dispose();
+            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
+            {
+                runspace.Dispose();
+            }
         }
 
         GC.SuppressFinalize(this);

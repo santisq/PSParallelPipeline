@@ -35,7 +35,7 @@ internal sealed class Worker : IDisposable
         _runspacePool = new RunspacePool(settings, this);
     }
 
-    internal void Wait() => _worker?.GetAwaiter().GetResult();
+    internal void Wait() => _worker?.Wait();
 
     internal void WaitOnCancel() =>
         _worker?

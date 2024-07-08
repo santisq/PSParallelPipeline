@@ -89,7 +89,9 @@ internal sealed class PSTask : IDisposable
     {
         try
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
+            using CancellationTokenRegistration _ = _pool
+                .RegisterCancellation(() => _pool.CancelTask(this));
+
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
         finally
@@ -98,12 +100,6 @@ internal sealed class PSTask : IDisposable
             _pool.Release();
         }
     }
-
-    private static Action CancelCallback(PSTask task) => delegate
-    {
-        task.Dispose();
-        task.Runspace.Dispose();
-    };
 
     public void Dispose()
     {
