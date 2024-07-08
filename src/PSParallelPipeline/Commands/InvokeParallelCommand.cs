@@ -72,7 +72,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             _worker.CancelAfter(TimeSpan.FromSeconds(TimeOutSeconds));
         }
 
-        _worker.Start();
+        _worker.Run();
     }
 
     protected override void ProcessRecord()
@@ -91,12 +91,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
             _worker.Cancel();
-            _worker.WaitOnCancel();
+            _worker.Wait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitOnCancel();
+            _worker.Wait();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -121,12 +121,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
             _worker.Cancel();
-            _worker.WaitOnCancel();
+            _worker.Wait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitOnCancel();
+            _worker.Wait();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
