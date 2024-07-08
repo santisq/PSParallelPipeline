@@ -29,7 +29,7 @@ internal sealed class RunspacePool : IDisposable
 
     internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
 
-    private readonly SemaphoreSlim _semaphoreSlim;
+    private readonly SemaphoreSlim _semaphore;
 
     internal RunspacePool(PoolSettings settings, Worker worker)
     {
@@ -37,10 +37,10 @@ internal sealed class RunspacePool : IDisposable
         _worker = worker;
         _pool = new ConcurrentQueue<Runspace>();
         _tasks = new List<Task>(MaxRunspaces);
-        _semaphoreSlim = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
+        _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
     }
 
-    internal void Release() => _semaphoreSlim.Release();
+    internal void Release() => _semaphore.Release();
 
     private Runspace CreateRunspace()
     {
@@ -71,7 +71,7 @@ internal sealed class RunspacePool : IDisposable
 
     private async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphoreSlim.WaitAsync(Token);
+        await _semaphore.WaitAsync(Token);
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
@@ -81,11 +81,7 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task EnqueueAsync(PSTask psTask)
     {
-        if (UsingStatements.Count > 0)
-        {
-            psTask.AddUsingStatements(UsingStatements);
-        }
-
+        psTask.AddUsingStatements(UsingStatements);
         psTask.Runspace = await GetRunspaceAsync();
         _tasks.Add(psTask.InvokeAsync());
     }
@@ -94,7 +90,6 @@ internal sealed class RunspacePool : IDisposable
     {
         while (_tasks.Count > 0)
         {
-            Token.ThrowIfCancellationRequested();
             await ProcessAnyAsync();
         }
     }
@@ -120,10 +115,7 @@ internal sealed class RunspacePool : IDisposable
     {
         while (_pool.TryDequeue(out Runspace runspace))
         {
-            if (runspace is { RunspaceAvailability: RunspaceAvailability.Available })
-            {
-                runspace.Dispose();
-            }
+            runspace.Dispose();
         }
 
         GC.SuppressFinalize(this);

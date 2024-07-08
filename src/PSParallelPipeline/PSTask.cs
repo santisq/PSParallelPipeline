@@ -17,8 +17,6 @@ internal sealed class PSTask : IDisposable
 
     private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
 
-    internal Guid Id { get => _powershell.InstanceId; }
-
     internal Runspace Runspace
     {
         get => _powershell.Runspace;
@@ -72,17 +70,15 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    internal PSTask AddUsingStatements(Dictionary<string, object?>? usingParams)
+    internal void AddUsingStatements(Dictionary<string, object?> usingParams)
     {
-        if (usingParams is { Count: > 0 })
+        if (usingParams.Count > 0 )
         {
             _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
             {
                 ["--%"] = usingParams
             });
         }
-
-        return this;
     }
 
     internal async Task InvokeAsync()
