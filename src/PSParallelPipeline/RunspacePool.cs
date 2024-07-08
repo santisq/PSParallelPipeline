@@ -69,6 +69,7 @@ internal sealed class RunspacePool : IDisposable
         {
             return runspace;
         }
+
         return CreateRunspace();
     }
 

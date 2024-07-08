@@ -37,6 +37,12 @@ internal sealed class Worker : IDisposable
 
     internal void Wait() => _worker?.Wait();
 
+    internal void WaitOnCancel() => _worker?
+        .ContinueWith(
+            _ => { _runspacePool.WaitOnCancel(); },
+            TaskContinuationOptions.NotOnRanToCompletion)
+        .Wait();
+
     internal void Cancel() => _cts.Cancel();
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
@@ -64,32 +70,24 @@ internal sealed class Worker : IDisposable
 
     private async Task Start()
     {
-        try
+        while (!_inputQueue.IsCompleted)
         {
-            while (!_inputQueue.IsCompleted)
+            if (_inputQueue.TryTake(out PSTask ps, 0, Token))
             {
-                if (_inputQueue.TryTake(out PSTask ps, 0, Token))
-                {
-                    await _runspacePool.EnqueueAsync(ps);
-                }
+                await _runspacePool.EnqueueAsync(ps);
             }
+        }
 
-            await _runspacePool.ProcessAllAsync();
-            OutputPipe.CompleteAdding();
-        }
-        catch (OperationCanceledException)
-        {
-            _runspacePool.WaitOnCancel();
-            _runspacePool.Dispose();
-        }
+        await _runspacePool.ProcessAllAsync();
+        OutputPipe.CompleteAdding();
     }
 
     public void Dispose()
     {
         _inputQueue.Dispose();
         OutputStreams.Dispose();
-        _runspacePool.Dispose();
         _cts.Dispose();
+        _runspacePool.Dispose();
         GC.SuppressFinalize(this);
     }
 }

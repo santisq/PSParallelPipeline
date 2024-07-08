@@ -91,12 +91,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
             _worker.Cancel();
-            _worker.Wait();
+            _worker.WaitOnCancel();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.Wait();
+            _worker.WaitOnCancel();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -121,12 +121,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
             _worker.Cancel();
-            _worker.Wait();
+            _worker.WaitOnCancel();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.Wait();
+            _worker.WaitOnCancel();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
