@@ -62,12 +62,6 @@ internal sealed class RunspacePool : IDisposable
         _pool.Enqueue(psTask.Runspace);
     }
 
-    internal void CancelTask(PSTask psTask)
-    {
-        psTask.Dispose();
-        psTask.Runspace.Dispose();
-    }
-
     private async Task<Runspace> GetRunspaceAsync()
     {
         await _semaphore.WaitAsync(Token);
