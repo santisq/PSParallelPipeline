@@ -66,7 +66,6 @@ internal sealed class RunspacePool : IDisposable
     {
         psTask.Dispose();
         psTask.Runspace.Dispose();
-        _pool.Enqueue(psTask.Runspace);
     }
 
     private async Task<Runspace> GetRunspaceAsync()
@@ -111,6 +110,10 @@ internal sealed class RunspacePool : IDisposable
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
+    internal void WaitOnCancel() => Task.WhenAll(_tasks)
+        .ContinueWith(_ => { }, TaskContinuationOptions.NotOnRanToCompletion)
+        .Wait();
+
     public void Dispose()
     {
         while (_pool.TryDequeue(out Runspace runspace))
@@ -118,6 +121,7 @@ internal sealed class RunspacePool : IDisposable
             runspace.Dispose();
         }
 
+        _semaphore.Dispose();
         GC.SuppressFinalize(this);
     }
 }
