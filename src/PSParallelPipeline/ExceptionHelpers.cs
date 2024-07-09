@@ -19,8 +19,9 @@ internal static class ExceptionHelpers
         cmdlet.WriteError(new ErrorRecord(
             exception, "UnspecifiedCmdletError", ErrorCategory.NotSpecified, cmdlet));
 
-    internal static ErrorRecord CreateProcessingTaskError(this Exception exception, object context) =>
-        new(exception, "ProcessingTask", ErrorCategory.NotSpecified, context);
+    internal static PSOutputData CreateProcessingTaskError(this Exception exception, object context) =>
+        PSOutputData.WriteError(new ErrorRecord(
+            exception, "ProcessingTask", ErrorCategory.NotSpecified, context));
 
     private static bool ValueIsNotScriptBlock(object? value) =>
         value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };

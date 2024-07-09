@@ -11,12 +11,6 @@ internal sealed class Worker : IDisposable
 {
     private readonly BlockingCollection<PSTask> _inputQueue = [];
 
-    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
-
-    internal CancellationToken Token { get => _cts.Token; }
-
-    internal PSOutputStreams OutputStreams { get; }
-
     private readonly CancellationTokenSource _cts;
 
     private readonly RunspacePool _runspacePool;
@@ -28,6 +22,12 @@ internal sealed class Worker : IDisposable
         ["Name"] = "_"
     };
 
+    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
+
+    internal CancellationToken Token { get => _cts.Token; }
+
+    internal PSOutputStreams OutputStreams { get; }
+
     internal Worker(PoolSettings settings)
     {
         _cts = new CancellationTokenSource();
@@ -37,16 +37,7 @@ internal sealed class Worker : IDisposable
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void WaitOperationCanceled() =>
-        _worker?
-            .ContinueWith(e => { }, TaskContinuationOptions.OnlyOnCanceled)
-            .Wait();
-
-    internal void StopAndWait()
-    {
-        _cts.Cancel();
-        Wait();
-    }
+    internal void Cancel() => _cts.Cancel();
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
 
@@ -69,26 +60,35 @@ internal sealed class Worker : IDisposable
     internal IEnumerable<PSOutputData> GetConsumingEnumerable() =>
         OutputPipe.GetConsumingEnumerable(Token);
 
-    internal void Start() => _worker = Task.Run(async () =>
-    {
-        while (!_inputQueue.IsCompleted)
-        {
-            if (_inputQueue.TryTake(out PSTask ps, 0, Token))
-            {
-                await _runspacePool.EnqueueAsync(ps);
-            }
-        }
+    internal void Run() => _worker = Task.Run(Start, cancellationToken: Token);
 
-        await _runspacePool.ProcessTasksAsync();
-        OutputPipe.CompleteAdding();
-    }, cancellationToken: Token);
+    private async Task Start()
+    {
+        try
+        {
+            while (!_inputQueue.IsCompleted)
+            {
+                if (_inputQueue.TryTake(out PSTask ps, 0, Token))
+                {
+                    await _runspacePool.EnqueueAsync(ps);
+                }
+            }
+
+            await _runspacePool.ProcessAllAsync();
+            OutputPipe.CompleteAdding();
+        }
+        catch
+        {
+            await _runspacePool.WaitOnCancelAsync();
+        }
+    }
 
     public void Dispose()
     {
-        _inputQueue.Dispose();
         OutputStreams.Dispose();
-        _runspacePool.Dispose();
+        _inputQueue.Dispose();
         _cts.Dispose();
+        _runspacePool.Dispose();
         GC.SuppressFinalize(this);
     }
 }

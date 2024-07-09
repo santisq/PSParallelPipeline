@@ -72,7 +72,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             _worker.CancelAfter(TimeSpan.FromSeconds(TimeOutSeconds));
         }
 
-        _worker.Start();
+        _worker.Run();
     }
 
     protected override void ProcessRecord()
@@ -90,12 +90,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
-            _worker.StopAndWait();
+            _worker.Cancel();
+            _worker.Wait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitOperationCanceled();
+            _worker.Wait();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -115,17 +116,17 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             {
                 ProcessOutput(data);
             }
-
             _worker.Wait();
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
-            _worker.StopAndWait();
+            _worker.Cancel();
+            _worker.Wait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitOperationCanceled();
+            _worker.Wait();
             exception.WriteTimeoutError(this);
         }
         catch (Exception exception)
@@ -147,7 +148,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 break;
 
             case Type.Debug:
-                WriteDebug((string)data.Output);
+                DebugRecord debug = (DebugRecord)data.Output;
+                WriteDebug(debug.Message);
                 break;
 
             case Type.Information:
@@ -159,16 +161,18 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 break;
 
             case Type.Verbose:
-                WriteVerbose((string)data.Output);
+                VerboseRecord verbose = (VerboseRecord)data.Output;
+                WriteVerbose(verbose.Message);
                 break;
 
             case Type.Warning:
-                WriteWarning((string)data.Output);
+                WarningRecord warning = (WarningRecord)data.Output;
+                WriteWarning(warning.Message);
                 break;
         }
     }
 
-    protected override void StopProcessing() => _worker?.StopAndWait();
+    protected override void StopProcessing() => _worker?.Cancel();
 
     public void Dispose()
     {
