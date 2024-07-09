@@ -79,14 +79,14 @@ internal sealed class Worker : IDisposable
         }
         catch
         {
-            await _runspacePool.WaitOnCancel();
+            await _runspacePool.WaitOnCancelAsync();
         }
     }
 
     public void Dispose()
     {
-        _inputQueue.Dispose();
         OutputStreams.Dispose();
+        _inputQueue.Dispose();
         _cts.Dispose();
         _runspacePool.Dispose();
         GC.SuppressFinalize(this);

@@ -98,7 +98,7 @@ internal sealed class RunspacePool : IDisposable
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
-    internal async Task WaitOnCancel() => await Task.WhenAll(_tasks);
+    internal async Task WaitOnCancelAsync() => await Task.WhenAll(_tasks);
 
     public void Dispose()
     {

@@ -33,7 +33,7 @@ internal sealed class PSOutputStreams : IDisposable
         SetStreamHandlers();
     }
 
-    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data); //, Token);
+    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data);
 
     private void SetStreamHandlers()
     {
