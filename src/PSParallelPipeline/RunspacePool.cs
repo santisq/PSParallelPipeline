@@ -90,24 +90,15 @@ internal sealed class RunspacePool : IDisposable
 
     private async Task ProcessAnyAsync()
     {
-        try
-        {
-            Task task = await Task.WhenAny(_tasks);
-            _tasks.Remove(task);
-            await task;
-        }
-        catch (Exception exception)
-        {
-            PSOutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
-        }
+        Task task = await Task.WhenAny(_tasks);
+        _tasks.Remove(task);
+        await task;
     }
 
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
-    internal void WaitOnCancel() => Task.WhenAll(_tasks)
-        .ContinueWith(_ => { }, TaskContinuationOptions.NotOnRanToCompletion)
-        .Wait();
+    internal async Task WaitOnCancel() => await Task.WhenAll(_tasks);
 
     public void Dispose()
     {

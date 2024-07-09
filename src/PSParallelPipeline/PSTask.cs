@@ -88,6 +88,10 @@ internal sealed class PSTask : IDisposable
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
+        catch (Exception exception)
+        {
+            OutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+        }
         finally
         {
             _pool.CompleteTask(this);

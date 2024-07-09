@@ -35,13 +35,7 @@ internal sealed class Worker : IDisposable
         _runspacePool = new RunspacePool(settings, this);
     }
 
-    internal void Wait() => _worker?.Wait();
-
-    internal void WaitOnCancel() => _worker?
-        .ContinueWith(
-            _ => { _runspacePool.WaitOnCancel(); },
-            TaskContinuationOptions.NotOnRanToCompletion)
-        .Wait();
+    internal void Wait() => _worker?.GetAwaiter().GetResult();
 
     internal void Cancel() => _cts.Cancel();
 
@@ -70,16 +64,23 @@ internal sealed class Worker : IDisposable
 
     private async Task Start()
     {
-        while (!_inputQueue.IsCompleted)
+        try
         {
-            if (_inputQueue.TryTake(out PSTask ps, 0, Token))
+            while (!_inputQueue.IsCompleted)
             {
-                await _runspacePool.EnqueueAsync(ps);
+                if (_inputQueue.TryTake(out PSTask ps, 0, Token))
+                {
+                    await _runspacePool.EnqueueAsync(ps);
+                }
             }
-        }
 
-        await _runspacePool.ProcessAllAsync();
-        OutputPipe.CompleteAdding();
+            await _runspacePool.ProcessAllAsync();
+            OutputPipe.CompleteAdding();
+        }
+        catch
+        {
+            await _runspacePool.WaitOnCancel();
+        }
     }
 
     public void Dispose()
