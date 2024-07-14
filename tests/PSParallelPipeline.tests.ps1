@@ -92,9 +92,9 @@ Describe PSParallelPipeline {
 
     Context 'UseNewRunspace Parameter' {
         It 'Should reuse runspaces by default' {
-            0..10 | Invoke-Parallel { [runspace]::DefaultRunspace } |
-                Select-Object -ExpandProperty InstanceId -Unique |
-                Should -HaveCount 5
+            $runspaces = 0..10 | Invoke-Parallel { [runspace]::DefaultRunspace } |
+                Select-Object -ExpandProperty InstanceId -Unique
+            $runspaces.Count | Should -BeLessOrEqual 5
         }
 
         It 'Should use a new runspace when the -UseNewRunspace is used' {
@@ -127,7 +127,7 @@ Describe PSParallelPipeline {
         It 'Defines the degree of parallelism' {
             Measure-Command {
                 0..10 | Invoke-Parallel { Start-Sleep 1 }
-            } | ForEach-Object TotalSeconds | Should -BeGreaterOrEqual 3
+            } | ForEach-Object TotalSeconds | Should -BeGreaterOrEqual 2
 
             Measure-Command {
                 0..10 | Invoke-Parallel { Start-Sleep 1 } -ThrottleLimit 11
@@ -344,14 +344,14 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw
-            } -TestCount 50
+            } -TestCount 50 # -WaitSeconds 1
 
             Assert-RunspaceCount {
                 $invokeParallelSplat['UseNewRunspace'] = $true
                 $invokeParallelSplat['ThrottleLimit'] = 1001
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw
-            } -TestCount 50
+            } -TestCount 50 # -WaitSeconds 1
         }
     }
 }

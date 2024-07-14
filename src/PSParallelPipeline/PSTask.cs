@@ -9,13 +9,13 @@ namespace PSParallelPipeline;
 
 internal sealed class PSTask : IDisposable
 {
-    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
-
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _internalStreams;
 
     private readonly RunspacePool _pool;
+
+    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
 
     internal Runspace Runspace
     {
@@ -70,30 +70,39 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    internal PSTask AddUsingStatements(Dictionary<string, object?>? usingParams)
+    internal void AddUsingStatements(Dictionary<string, object?> usingParams)
     {
-        if (usingParams is { Count: > 0 })
+        if (usingParams.Count > 0 )
         {
             _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
             {
                 ["--%"] = usingParams
             });
         }
-
-        return this;
     }
 
-    internal async Task<PSTask> InvokeAsync()
+    internal async Task InvokeAsync()
     {
-        using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
-        await InvokePowerShellAsync(_powershell, OutputStreams.Success);
-        return this;
+        try
+        {
+            using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
+            await InvokePowerShellAsync(_powershell, OutputStreams.Success);
+        }
+        catch (Exception exception)
+        {
+            OutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+        }
+        finally
+        {
+            _pool.CompleteTask(this);
+            _pool.Release();
+        }
     }
 
-    private static Action CancelCallback(PSTask task) => delegate
+    private static Action CancelCallback(PSTask psTask) => delegate
     {
-        task.Dispose();
-        task.Runspace.Dispose();
+        psTask.Dispose();
+        psTask.Runspace.Dispose();
     };
 
     public void Dispose()

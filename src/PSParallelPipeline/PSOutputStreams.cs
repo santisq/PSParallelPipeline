@@ -33,91 +33,41 @@ internal sealed class PSOutputStreams : IDisposable
         SetStreamHandlers();
     }
 
+    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data);
+
     private void SetStreamHandlers()
     {
-        Success.DataAdded += (s, e) =>
-        {
-            foreach (PSObject data in Success.ReadAll())
-            {
-                WriteObject(data);
-            }
-        };
+        Success.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteObject(e.ItemAdded));
 
-        Error.DataAdded += (s, e) =>
-        {
-            foreach (ErrorRecord error in Error.ReadAll())
-            {
-                WriteError(error);
-            }
-        };
+        Error.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteError(e.ItemAdded));
 
-        Debug.DataAdded += (s, e) =>
-        {
-            foreach (DebugRecord debug in Debug.ReadAll())
-            {
-                WriteDebug(debug);
-            }
-        };
+        Debug.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteDebug(e.ItemAdded));
 
+        Information.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteInformation(e.ItemAdded));
 
-        Information.DataAdded += (s, e) =>
-        {
-            foreach (InformationRecord information in Information.ReadAll())
-            {
-                WriteInformation(information);
-            }
-        };
+        Progress.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteProgress(e.ItemAdded));
 
-        Progress.DataAdded += (s, e) =>
-        {
-            foreach (ProgressRecord progress in Progress.ReadAll())
-            {
-                WriteProgress(progress);
-            }
-        };
+        Verbose.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteVerbose(e.ItemAdded));
 
-        Verbose.DataAdded += (s, e) =>
-        {
-            foreach (VerboseRecord verbose in Verbose.ReadAll())
-            {
-                WriteVerbose(verbose);
-            }
-        };
-
-        Warning.DataAdded += (s, e) =>
-        {
-            foreach (WarningRecord warning in Warning.ReadAll())
-            {
-                WriteWarning(warning);
-            }
-        };
+        Warning.DataAdding += (s, e) =>
+            AddOutput(PSOutputData.WriteWarning(e.ItemAdded));
     }
-
-    private void WriteObject(PSObject data) =>
-        OutputPipe.Add(PSOutputData.WriteObject(data), Token);
-
-    internal void WriteError(ErrorRecord error) =>
-        OutputPipe.Add(PSOutputData.WriteError(error), Token);
-
-    private void WriteDebug(DebugRecord debug) =>
-        OutputPipe.Add(PSOutputData.WriteDebug(debug), Token);
-
-    private void WriteInformation(InformationRecord information) =>
-        OutputPipe.Add(PSOutputData.WriteInformation(information), Token);
-
-    private void WriteProgress(ProgressRecord progress) =>
-        OutputPipe.Add(PSOutputData.WriteProgress(progress), Token);
-
-    private void WriteVerbose(VerboseRecord verbose) =>
-        OutputPipe.Add(PSOutputData.WriteVerbose(verbose), Token);
-
-    private void WriteWarning(WarningRecord warning) =>
-        OutputPipe.Add(PSOutputData.WriteWarning(warning), Token);
 
     public void Dispose()
     {
         Success.Dispose();
         Error.Dispose();
+        Debug.Dispose();
+        Information.Dispose();
+        Progress.Dispose();
+        Verbose.Dispose();
+        Warning.Dispose();
         OutputPipe.Dispose();
         GC.SuppressFinalize(this);
     }
