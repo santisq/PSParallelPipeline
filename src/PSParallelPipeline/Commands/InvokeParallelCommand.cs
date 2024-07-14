@@ -24,7 +24,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     [Parameter]
     [ValidateRange(0, int.MaxValue)]
     [Alias("to")]
-    public int TimeOutSeconds { get; set; }
+    public int TimeoutSeconds { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
@@ -67,9 +67,9 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
         _worker = new Worker(poolSettings);
 
-        if (TimeOutSeconds > 0)
+        if (TimeoutSeconds > 0)
         {
-            _worker.CancelAfter(TimeSpan.FromSeconds(TimeOutSeconds));
+            _worker.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
         }
 
         _worker.Start();
