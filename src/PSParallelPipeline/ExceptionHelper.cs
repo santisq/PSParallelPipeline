@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation;
 
 namespace PSParallelPipeline;
 
-internal static class ExceptionHelpers
+internal static class ExceptionHelper
 {
     private const string _notsupported =
         "Passed-in script block variables are not supported, and can result in undefined behavior.";
@@ -15,16 +16,32 @@ internal static class ExceptionHelpers
             ErrorCategory.OperationTimeout,
             cmdlet));
 
-    internal static void WriteUnspecifiedError(this Exception exception, PSCmdlet cmdlet) =>
-        cmdlet.WriteError(new ErrorRecord(
-            exception, "UnspecifiedCmdletError", ErrorCategory.NotSpecified, cmdlet));
-
     internal static PSOutputData CreateProcessingTaskError(this Exception exception, object context) =>
         PSOutputData.WriteError(new ErrorRecord(
             exception, "ProcessingTask", ErrorCategory.NotSpecified, context));
 
+    internal static void ThrowFunctionNotFoundError(
+        this CommandNotFoundException exception,
+        Cmdlet cmdlet,
+        string function) =>
+        cmdlet.ThrowTerminatingError(new ErrorRecord(
+            exception, "FunctionNotFound", ErrorCategory.ObjectNotFound, function));
+
     private static bool ValueIsNotScriptBlock(object? value) =>
         value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };
+
+    internal static CommandInfo ThrowIfFunctionNotFoundError(
+        this CommandInfo? command,
+        string function)
+    {
+        if (command is not null)
+        {
+            return command;
+        }
+
+        throw new CommandNotFoundException(
+            $"The function with name '{function}' could not be found.");
+    }
 
     internal static void ThrowIfVariableIsScriptBlock(this PSCmdlet cmdlet, object? value)
     {

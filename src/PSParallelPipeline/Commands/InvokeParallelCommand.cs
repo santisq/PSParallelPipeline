@@ -93,10 +93,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             _worker.Wait();
             exception.WriteTimeoutError(this);
         }
-        catch (Exception exception)
-        {
-            exception.WriteUnspecifiedError(this);
-        }
     }
 
     protected override void EndProcessing()
@@ -122,10 +118,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             _worker.Wait();
             exception.WriteTimeoutError(this);
-        }
-        catch (Exception exception)
-        {
-            exception.WriteUnspecifiedError(this);
         }
     }
 
@@ -166,7 +158,11 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
     }
 
-    protected override void StopProcessing() => _worker?.Cancel();
+    protected override void StopProcessing()
+    {
+        _worker?.Cancel();
+        _worker?.Wait();
+    }
 
     public void Dispose()
     {

@@ -120,6 +120,9 @@ Describe PSParallelPipeline {
             0..10 | Invoke-Parallel { Test-Function $_ } -Functions Test-Function |
                 Sort-Object |
                 Should -BeExactly @(0..10 | ForEach-Object { Test-Function $_ })
+
+            { Invoke-Parallel -Functions Test-NotExist { } } |
+                Should -Throw -ExceptionType ([CommandNotFoundException])
         }
     }
 

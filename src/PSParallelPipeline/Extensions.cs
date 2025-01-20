@@ -20,18 +20,22 @@ internal static class Extensions
         {
             foreach (string function in functionsToAdd)
             {
-                CommandInfo? commandInfo = cmdlet
-                    .InvokeCommand
-                    .GetCommand(function, CommandTypes.Function);
-
-                if (commandInfo is null)
+                try
                 {
-                    continue;
-                }
+                    CommandInfo commandInfo = cmdlet
+                        .InvokeCommand
+                        .GetCommand(function, CommandTypes.Function)
+                        .ThrowIfFunctionNotFoundError(function);
 
-                initialSessionState.Commands.Add(new SessionStateFunctionEntry(
-                    name: function,
-                    definition: commandInfo.Definition));
+                    initialSessionState.Commands.Add(
+                        new SessionStateFunctionEntry(
+                            name: function,
+                            definition: commandInfo.Definition));
+                }
+                catch (CommandNotFoundException exception)
+                {
+                    exception.ThrowFunctionNotFoundError(cmdlet, function);
+                }
             }
         }
 
