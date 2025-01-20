@@ -22,7 +22,7 @@ public sealed class CommandCompleter : IArgumentCompleter
     {
         try
         {
-            _builtinFuncs ??= new HashSet<string>(GetBuiltinFunctions());
+            _builtinFuncs ??= [.. GetBuiltinFunctions()];
 
             return CompletionCompleters
                 .CompleteCommand(

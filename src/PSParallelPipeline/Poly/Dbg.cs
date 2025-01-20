@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace PSParallelPipeline;
+namespace PSParallelPipeline.Poly;
 
 internal static class Dbg
 {

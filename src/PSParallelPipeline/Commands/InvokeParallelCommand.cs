@@ -2,14 +2,17 @@ using System;
 using System.Collections;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
+using PSParallelPipeline.Poly;
 
-namespace PSParallelPipeline;
+namespace PSParallelPipeline.Commands;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
 [Alias("parallel")]
 [OutputType(typeof(object))]
 public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {
+    private Worker? _worker;
+
     [Parameter(Position = 0, Mandatory = true)]
     public ScriptBlock ScriptBlock { get; set; } = null!;
 
@@ -41,21 +44,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     [Alias("unr")]
     public SwitchParameter UseNewRunspace { get; set; }
 
-    private Worker? _worker;
-
     protected override void BeginProcessing()
     {
-        InitialSessionState iss = InitialSessionState.CreateDefault2();
-
-        if (Functions is not null)
-        {
-            iss.AddFunctions(Functions, this);
-        }
-
-        if (Variables is not null)
-        {
-            iss.AddVariables(Variables, this);
-        }
+        InitialSessionState iss = InitialSessionState
+            .CreateDefault2()
+            .AddFunctions(Functions, this)
+            .AddVariables(Variables, this);
 
         PoolSettings poolSettings = new()
         {
