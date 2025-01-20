@@ -17,7 +17,7 @@ internal sealed class RunspacePool : IDisposable
 
     private int MaxRunspaces { get => _settings.MaxRunspaces; }
 
-    private readonly ConcurrentQueue<Runspace> _pool;
+    private readonly ConcurrentQueue<Runspace> _pool = [];
 
     private readonly PoolSettings _settings;
 
@@ -35,7 +35,6 @@ internal sealed class RunspacePool : IDisposable
     {
         _settings = settings;
         _worker = worker;
-        _pool = new ConcurrentQueue<Runspace>();
         _tasks = new List<Task>(MaxRunspaces);
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
     }
@@ -73,7 +72,7 @@ internal sealed class RunspacePool : IDisposable
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
-    internal async Task WaitOnCancelAsync() => await Task.WhenAll(_tasks);
+    internal void WaitOnCancel() => Task.WhenAll(_tasks).GetAwaiter().GetResult();
 
     private async Task ProcessAnyAsync()
     {
@@ -102,7 +101,7 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        while (_pool.TryDequeue(out Runspace runspace))
+        foreach (Runspace runspace in _pool)
         {
             runspace.Dispose();
         }

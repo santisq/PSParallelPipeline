@@ -37,7 +37,11 @@ internal sealed class Worker : IDisposable
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void Cancel() => _cts.Cancel();
+    internal void CancelAndWait()
+    {
+        _cts.Cancel();
+        Wait();
+    }
 
     internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
 
@@ -79,7 +83,7 @@ internal sealed class Worker : IDisposable
         }
         catch
         {
-            await _runspacePool.WaitOnCancelAsync();
+            _runspacePool.WaitOnCancel();
         }
     }
 
