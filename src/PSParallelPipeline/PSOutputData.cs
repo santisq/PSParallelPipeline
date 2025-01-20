@@ -1,5 +1,3 @@
-using System.Management.Automation;
-
 namespace PSParallelPipeline;
 
 internal enum Type

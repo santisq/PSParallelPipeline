@@ -42,13 +42,6 @@ internal sealed class RunspacePool : IDisposable
 
     internal void Release() => _semaphore.Release();
 
-    private Runspace CreateRunspace()
-    {
-        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
-        rs.Open();
-        return rs;
-    }
-
     internal void CompleteTask(PSTask psTask)
     {
         psTask.Dispose();
@@ -60,17 +53,6 @@ internal sealed class RunspacePool : IDisposable
         }
 
         _pool.Enqueue(psTask.Runspace);
-    }
-
-    private async Task<Runspace> GetRunspaceAsync()
-    {
-        await _semaphore.WaitAsync(Token);
-        if (_pool.TryDequeue(out Runspace runspace))
-        {
-            return runspace;
-        }
-
-        return CreateRunspace();
     }
 
     internal async Task EnqueueAsync(PSTask psTask)
@@ -88,6 +70,11 @@ internal sealed class RunspacePool : IDisposable
         }
     }
 
+    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
+        Token.Register(callback);
+
+    internal async Task WaitOnCancelAsync() => await Task.WhenAll(_tasks);
+
     private async Task ProcessAnyAsync()
     {
         Task task = await Task.WhenAny(_tasks);
@@ -95,10 +82,23 @@ internal sealed class RunspacePool : IDisposable
         await task;
     }
 
-    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
-        Token.Register(callback);
+    private Runspace CreateRunspace()
+    {
+        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
+        rs.Open();
+        return rs;
+    }
 
-    internal async Task WaitOnCancelAsync() => await Task.WhenAll(_tasks);
+    private async Task<Runspace> GetRunspaceAsync()
+    {
+        await _semaphore.WaitAsync(Token);
+        if (_pool.TryDequeue(out Runspace runspace))
+        {
+            return runspace;
+        }
+
+        return CreateRunspace();
+    }
 
     public void Dispose()
     {

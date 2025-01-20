@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
@@ -10,41 +11,51 @@ namespace PSParallelPipeline;
 
 internal static class Extensions
 {
-    internal static void AddFunctions(
+    internal static InitialSessionState AddFunctions(
         this InitialSessionState initialSessionState,
-        string[] functionsToAdd,
+        string[]? functionsToAdd,
         PSCmdlet cmdlet)
     {
-        foreach (string function in functionsToAdd)
+        if (functionsToAdd is not null)
         {
-            CommandInfo? commandInfo = cmdlet
-                .InvokeCommand
-                .GetCommand(function, CommandTypes.Function);
-
-            if (commandInfo is null)
+            foreach (string function in functionsToAdd)
             {
-                continue;
-            }
+                CommandInfo? commandInfo = cmdlet
+                    .InvokeCommand
+                    .GetCommand(function, CommandTypes.Function);
 
-            initialSessionState.Commands.Add(new SessionStateFunctionEntry(
-                name: function,
-                definition: commandInfo.Definition));
+                if (commandInfo is null)
+                {
+                    continue;
+                }
+
+                initialSessionState.Commands.Add(new SessionStateFunctionEntry(
+                    name: function,
+                    definition: commandInfo.Definition));
+            }
         }
+
+        return initialSessionState;
     }
 
-    internal static void AddVariables(
+    internal static InitialSessionState AddVariables(
         this InitialSessionState initialSessionState,
-        Hashtable variables,
+        Hashtable? variables,
         PSCmdlet cmdlet)
     {
-        foreach (DictionaryEntry pair in variables)
+        if (variables is not null)
         {
-            cmdlet.ThrowIfVariableIsScriptBlock(pair.Value);
-            initialSessionState.Variables.Add(new SessionStateVariableEntry(
-                name: LanguagePrimitives.ConvertTo<string>(pair.Key),
-                value: pair.Value,
-                description: null));
+            foreach (DictionaryEntry pair in variables)
+            {
+                cmdlet.ThrowIfVariableIsScriptBlock(pair.Value);
+                initialSessionState.Variables.Add(new SessionStateVariableEntry(
+                    name: LanguagePrimitives.ConvertTo<string>(pair.Key),
+                    value: pair.Value,
+                    description: null));
+            }
         }
+
+        return initialSessionState;
     }
 
     internal static Dictionary<string, object?> GetUsingParameters(
@@ -52,10 +63,15 @@ internal static class Extensions
         PSCmdlet cmdlet)
     {
         Dictionary<string, object?> usingParams = [];
+        IEnumerable<UsingExpressionAst> usingExpressionAsts = script.Ast
+            .FindAll((a) => a is UsingExpressionAst, true)
+            .Cast<UsingExpressionAst>();
 
-        foreach (UsingExpressionAst usingStatement in script.Ast.FindAll((a) => a is UsingExpressionAst, true))
+        foreach (UsingExpressionAst usingStatement in usingExpressionAsts)
         {
-            VariableExpressionAst backingVariableAst = UsingExpressionAst.ExtractUsingVariable(usingStatement);
+            VariableExpressionAst backingVariableAst = UsingExpressionAst
+                .ExtractUsingVariable(usingStatement);
+
             string varPath = backingVariableAst.VariablePath.UserPath;
 
             string varText = usingStatement.ToString();
@@ -89,7 +105,9 @@ internal static class Extensions
         object? value,
         ExpressionAst ast)
     {
-        VariableExpressionAst usingVariable = (VariableExpressionAst)ast.Find(a => a is VariableExpressionAst, false);
+        VariableExpressionAst usingVariable = (VariableExpressionAst)ast
+            .Find(a => a is VariableExpressionAst, false);
+
         ExpressionAst lookupAst = new ConstantExpressionAst(ast.Extent, value);
         Ast? currentAst = usingVariable;
 

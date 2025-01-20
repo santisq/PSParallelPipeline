@@ -9,8 +9,6 @@ internal sealed class PSOutputStreams : IDisposable
 {
     private BlockingCollection<PSOutputData> OutputPipe { get => _worker.OutputPipe; }
 
-    private CancellationToken Token { get => _worker.Token; }
-
     internal PSDataCollection<PSObject> Success { get; } = [];
 
     internal PSDataCollection<ErrorRecord> Error { get; } = [];

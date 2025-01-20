@@ -11,7 +11,7 @@
     RootModule        = 'bin/netstandard2.0/PSParallelPipeline.dll'
 
     # Version number of this module.
-    ModuleVersion     = '1.2.0'
+    ModuleVersion     = '1.2.1'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
@@ -29,7 +29,7 @@
     Copyright         = '(c) Santiago Squarzon. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description       = 'Enables parallel processing of pipeline input objects.'
+    Description       = 'Includes Invoke-Parallel cmdlet, allowing for parallel processing of input objects, sharing similar capabilities as ForEach-Object -Parallel.'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -94,11 +94,13 @@
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags       = @(
                 'parallel'
-                'concurrency'
                 'runspace'
                 'parallel-processing'
-                'powershell'
                 'multithreading'
+                'foreach'
+                'pipeline'
+                'threads'
+                'ForEach-Object'
             )
 
             # A URL to the license for this module.
