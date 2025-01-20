@@ -20,21 +20,14 @@ public sealed class CommandCompleter : IArgumentCompleter
         CommandAst commandAst,
         IDictionary fakeBoundParameters)
     {
-        try
-        {
-            _builtinFuncs ??= [.. GetBuiltinFunctions()];
+        _builtinFuncs ??= [.. GetBuiltinFunctions()];
 
-            return CompletionCompleters
-                .CompleteCommand(
-                    commandName: wordToComplete,
-                    moduleName: null,
-                    commandTypes: CommandTypes.Function)
-                .Where(e => !_builtinFuncs.Contains(e.CompletionText));
-        }
-        catch
-        {
-            return [];
-        }
+        return CompletionCompleters
+            .CompleteCommand(
+                commandName: wordToComplete,
+                moduleName: null,
+                commandTypes: CommandTypes.Function)
+            .Where(e => !_builtinFuncs.Contains(e.CompletionText));
     }
 
     private IEnumerable<string> GetBuiltinFunctions() =>
