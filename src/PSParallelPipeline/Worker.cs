@@ -7,7 +7,7 @@ using System.Management.Automation;
 
 namespace PSParallelPipeline;
 
-internal sealed class Worker : IDisposable
+internal sealed class Worker
 {
     private readonly BlockingCollection<PSTask> _inputQueue = [];
 
@@ -89,10 +89,10 @@ internal sealed class Worker : IDisposable
 
     public void Dispose()
     {
-        OutputStreams.Dispose();
-        _inputQueue.Dispose();
-        _cts.Dispose();
         _runspacePool.Dispose();
+        _inputQueue.Dispose();
+        OutputStreams.Dispose();
+        _cts.Dispose();
         GC.SuppressFinalize(this);
     }
 }

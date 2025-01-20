@@ -45,7 +45,7 @@ internal sealed class RunspacePool : IDisposable
     {
         psTask.Dispose();
 
-        if (UseNewRunspace)
+        if (UseNewRunspace || Token.IsCancellationRequested)
         {
             psTask.Runspace.Dispose();
             return;

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Management.Automation;
-using System.Threading;
 
 namespace PSParallelPipeline;
 
@@ -31,7 +30,13 @@ internal sealed class PSOutputStreams : IDisposable
         SetStreamHandlers();
     }
 
-    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data);
+    internal void AddOutput(PSOutputData data)
+    {
+        if (!_worker.Token.IsCancellationRequested)
+        {
+            OutputPipe.Add(data);
+        }
+    }
 
     private void SetStreamHandlers()
     {
