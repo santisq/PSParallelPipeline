@@ -9,11 +9,9 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
-    private CancellationToken Token { get => _worker.Token; }
+    private CancellationToken Token { get; }
 
     private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
-
-    private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
 
     private int MaxRunspaces { get => _settings.MaxRunspaces; }
 
@@ -21,42 +19,32 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly PoolSettings _settings;
 
-    private readonly Worker _worker;
-
     private readonly List<Task> _tasks;
 
-    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
+    internal bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
-    internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
+    internal PSOutputStreams Streams { get; }
 
     private readonly SemaphoreSlim _semaphore;
 
-    internal RunspacePool(PoolSettings settings, Worker worker)
+    internal RunspacePool(
+        PoolSettings settings,
+        PSOutputStreams streams,
+        CancellationToken token)
     {
+        Streams = streams;
+        Token = token;
         _settings = settings;
-        _worker = worker;
         _tasks = new List<Task>(MaxRunspaces);
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
     }
 
     internal void Release() => _semaphore.Release();
 
-    internal void CompleteTask(PSTask psTask)
-    {
-        psTask.Dispose();
-
-        if (UseNewRunspace || Token.IsCancellationRequested)
-        {
-            psTask.Runspace.Dispose();
-            return;
-        }
-
-        _pool.Enqueue(psTask.Runspace);
-    }
+    internal void PushRunspace(Runspace runspace) => _pool.Enqueue(runspace);
 
     internal async Task EnqueueAsync(PSTask psTask)
     {
-        psTask.AddUsingStatements(UsingStatements);
         psTask.Runspace = await GetRunspaceAsync();
         _tasks.Add(psTask.InvokeAsync());
     }

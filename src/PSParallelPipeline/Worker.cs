@@ -9,60 +9,55 @@ namespace PSParallelPipeline;
 
 internal sealed class Worker
 {
-    private readonly BlockingCollection<PSTask> _inputQueue = [];
-
-    private readonly CancellationTokenSource _cts;
-
-    private readonly RunspacePool _runspacePool;
-
     private Task? _worker;
+
+    private readonly BlockingCollection<PSTask> _input = [];
+
+    private readonly BlockingCollection<PSOutputData> _output = [];
+
+    private readonly RunspacePool _pool;
+
+    private readonly WorkerSettings _settings;
 
     private readonly Dictionary<string, object?> _inputObject = new()
     {
         ["Name"] = "_"
     };
 
-    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
+    internal CancellationToken Token { get => _settings.Token; }
 
-    internal CancellationToken Token { get => _cts.Token; }
+    internal PSOutputStreams Streams { get; }
 
-    internal PSOutputStreams OutputStreams { get; }
-
-    internal Worker(PoolSettings settings)
+    internal Worker(
+        PoolSettings poolSettings,
+        WorkerSettings workerSettings)
     {
-        _cts = new CancellationTokenSource();
-        OutputStreams = new PSOutputStreams(this);
-        _runspacePool = new RunspacePool(settings, this);
+        Streams = new PSOutputStreams(_output);
+        _settings = workerSettings;
+        _pool = new RunspacePool(poolSettings, Streams, Token);
     }
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void CancelAndWait()
-    {
-        _cts.Cancel();
-        Wait();
-    }
-
-    internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
-
     internal void Enqueue(object? input, ScriptBlock script)
     {
         _inputObject["Value"] = input;
-        _inputQueue.Add(
+        _input.Add(
             item: PSTask
-                .Create(_runspacePool)
+                .Create(_pool)
                 .AddInputObject(_inputObject)
-                .AddScript(script),
+                .AddScript(script)
+                .AddUsingStatements(_settings.UsingStatements),
             cancellationToken: Token);
     }
 
     internal bool TryTake(out PSOutputData output) =>
-        OutputPipe.TryTake(out output, 0, Token);
+        _output.TryTake(out output, 0, Token);
 
-    internal void CompleteInputAdding() => _inputQueue.CompleteAdding();
+    internal void CompleteInputAdding() => _input.CompleteAdding();
 
     internal IEnumerable<PSOutputData> GetConsumingEnumerable() =>
-        OutputPipe.GetConsumingEnumerable(Token);
+        _output.GetConsumingEnumerable(Token);
 
     internal void Run() => _worker = Task.Run(Start, cancellationToken: Token);
 
@@ -70,29 +65,29 @@ internal sealed class Worker
     {
         try
         {
-            while (!_inputQueue.IsCompleted)
+            while (!_input.IsCompleted)
             {
-                if (_inputQueue.TryTake(out PSTask ps, 0, Token))
+                if (_input.TryTake(out PSTask ps, 0, Token))
                 {
-                    await _runspacePool.EnqueueAsync(ps);
+                    await _pool.EnqueueAsync(ps);
                 }
             }
 
-            await _runspacePool.ProcessAllAsync();
-            OutputPipe.CompleteAdding();
+            await _pool.ProcessAllAsync();
+            _output.CompleteAdding();
         }
         catch
         {
-            _runspacePool.WaitOnCancel();
+            _pool.WaitOnCancel();
         }
     }
 
     public void Dispose()
     {
-        _runspacePool.Dispose();
-        _inputQueue.Dispose();
-        OutputStreams.Dispose();
-        _cts.Dispose();
+        _pool.Dispose();
+        _input.Dispose();
+        Streams.Dispose();
+        _output.Dispose();
         GC.SuppressFinalize(this);
     }
 }

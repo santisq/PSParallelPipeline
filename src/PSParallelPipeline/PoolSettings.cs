@@ -6,5 +6,4 @@ namespace PSParallelPipeline;
 internal record struct PoolSettings(
     int MaxRunspaces,
     bool UseNewRunspace,
-    InitialSessionState InitialSessionState,
-    Dictionary<string, object?> UsingStatements);
+    InitialSessionState InitialSessionState);

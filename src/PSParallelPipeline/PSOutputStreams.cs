@@ -6,7 +6,7 @@ namespace PSParallelPipeline;
 
 internal sealed class PSOutputStreams : IDisposable
 {
-    private BlockingCollection<PSOutputData> OutputPipe { get => _worker.OutputPipe; }
+    private BlockingCollection<PSOutputData> OutputPipe { get; }
 
     internal PSDataCollection<PSObject> Success { get; } = [];
 
@@ -22,23 +22,15 @@ internal sealed class PSOutputStreams : IDisposable
 
     internal PSDataCollection<WarningRecord> Warning { get; } = [];
 
-    private readonly Worker _worker;
-
-    internal PSOutputStreams(Worker worker)
+    internal PSOutputStreams(BlockingCollection<PSOutputData> output)
     {
-        _worker = worker;
-        SetStreamHandlers();
+        OutputPipe = output;
+        SetHandlers();
     }
 
-    internal void AddOutput(PSOutputData data)
-    {
-        if (!_worker.Token.IsCancellationRequested)
-        {
-            OutputPipe.Add(data);
-        }
-    }
+    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data);
 
-    private void SetStreamHandlers()
+    private void SetHandlers()
     {
         Success.DataAdding += (s, e) =>
             AddOutput(PSOutputData.WriteObject(e.ItemAdded));
@@ -71,7 +63,6 @@ internal sealed class PSOutputStreams : IDisposable
         Progress.Dispose();
         Verbose.Dispose();
         Warning.Dispose();
-        OutputPipe.Dispose();
         GC.SuppressFinalize(this);
     }
 }

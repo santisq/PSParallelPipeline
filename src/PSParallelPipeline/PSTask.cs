@@ -7,7 +7,7 @@ using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
-internal sealed class PSTask : IDisposable
+internal sealed class PSTask
 {
     private readonly PowerShell _powershell;
 
@@ -15,7 +15,7 @@ internal sealed class PSTask : IDisposable
 
     private readonly RunspacePool _pool;
 
-    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
+    private PSOutputStreams OutputStreams { get => _pool.Streams; }
 
     internal Runspace Runspace
     {
@@ -33,7 +33,7 @@ internal sealed class PSTask : IDisposable
     static internal PSTask Create(RunspacePool runspacePool)
     {
         PSTask ps = new(runspacePool);
-        HookStreams(ps._internalStreams, runspacePool.PSOutputStreams);
+        HookStreams(ps._internalStreams, runspacePool.Streams);
         return ps;
     }
 
@@ -70,7 +70,7 @@ internal sealed class PSTask : IDisposable
         return this;
     }
 
-    internal void AddUsingStatements(Dictionary<string, object?> usingParams)
+    internal PSTask AddUsingStatements(Dictionary<string, object?> usingParams)
     {
         if (usingParams.Count > 0 )
         {
@@ -79,13 +79,15 @@ internal sealed class PSTask : IDisposable
                 ["--%"] = usingParams
             });
         }
+
+        return this;
     }
 
     internal async Task InvokeAsync()
     {
         try
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(Dispose);
+            using CancellationTokenRegistration _ = _pool.RegisterCancellation(_powershell.Dispose);
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
         catch (Exception exception)
@@ -94,14 +96,21 @@ internal sealed class PSTask : IDisposable
         }
         finally
         {
-            _pool.CompleteTask(this);
+            Clean(this, _pool);
             _pool.Release();
         }
     }
 
-    public void Dispose()
+    private static void Clean(PSTask task, RunspacePool pool)
     {
-        _powershell.Dispose();
-        GC.SuppressFinalize(this);
+        task._powershell.Dispose();
+
+        if (pool.UseNewRunspace)
+        {
+            task.Runspace.Dispose();
+            return;
+        }
+
+        pool.PushRunspace(task.Runspace);
     }
 }
