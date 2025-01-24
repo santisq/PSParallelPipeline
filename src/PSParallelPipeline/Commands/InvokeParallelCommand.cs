@@ -66,13 +66,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             InitialSessionState = iss
         };
 
-        WorkerSettings workerSettings = new()
+        TaskSettings workerSettings = new()
         {
-            Token = _cts.Token,
+            Script = ScriptBlock.ToString(),
             UsingStatements = ScriptBlock.GetUsingParameters(this)
         };
 
-        _worker = new Worker(poolSettings, workerSettings);
+        _worker = new Worker(poolSettings, workerSettings, _cts.Token);
         _worker.Run();
     }
 
@@ -83,7 +83,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
         try
         {
-            _worker.Enqueue(InputObject, ScriptBlock);
+            _worker.Enqueue(InputObject);
             while (_worker.TryTake(out PSOutputData data))
             {
                 ProcessOutput(data);

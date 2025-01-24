@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Management.Automation;
 
 namespace PSParallelPipeline;
 
@@ -11,7 +10,9 @@ internal sealed class Worker
 {
     private Task? _worker;
 
-    private readonly BlockingCollection<PSTask> _input = [];
+    private readonly TaskSettings _taskSettings;
+
+    private readonly BlockingCollection<object?> _input = [];
 
     private readonly BlockingCollection<PSOutputData> _output = [];
 
@@ -19,31 +20,22 @@ internal sealed class Worker
 
     private readonly CancellationToken _token;
 
-    private readonly Dictionary<string, object?> _usingParams;
-
     private readonly PSOutputStreams _streams;
 
     internal Worker(
         PoolSettings poolSettings,
-        WorkerSettings workerSettings)
+        TaskSettings taskSettings,
+        CancellationToken token)
     {
-        (_usingParams, _token) = workerSettings;
+        _token = token;
+        _taskSettings = taskSettings;
         _streams = new PSOutputStreams(_output);
         _pool = new RunspacePool(poolSettings, _streams, _token);
     }
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void Enqueue(object? input, ScriptBlock script)
-    {
-        _input.Add(
-            item: PSTask
-                .Create(_pool)
-                .AddInput(input)
-                .AddScript(script)
-                .AddUsingStatements(_usingParams),
-            cancellationToken: _token);
-    }
+    internal void Enqueue(object? input) => _input.Add(input, _token);
 
     internal bool TryTake(out PSOutputData output) =>
         _output.TryTake(out output, 0, _token);
@@ -68,9 +60,14 @@ internal sealed class Worker
                     await ProcessAnyAsync(tasks);
                 }
 
-                if (_input.TryTake(out PSTask ps, 0, _token))
+                if (_input.TryTake(out object? input, 0, _token))
                 {
-                    tasks.Add(ps.InvokeAsync());
+                    PSTask task = await PSTask.CreateAsync(
+                        input: input,
+                        runspacePool: _pool,
+                        settings: _taskSettings);
+
+                    tasks.Add(task.InvokeAsync());
                 }
             }
 

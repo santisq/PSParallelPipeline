@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Management.Automation.Runspaces;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +14,9 @@ internal sealed class RunspacePool : IDisposable
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
 
-    private readonly List<Runspace> _created;
+    // private readonly List<Runspace> _created;
+
+    private readonly ConcurrentDictionary<Guid, Runspace> _created;
 
     private readonly bool _useNew;
 
@@ -33,21 +34,18 @@ internal sealed class RunspacePool : IDisposable
         (MaxRunspaces, _useNew, _iss) = settings;
         Streams = streams;
         Token = token;
-        _created = new List<Runspace>(MaxRunspaces);
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
+        _created = new ConcurrentDictionary<Guid, Runspace>(
+            Environment.ProcessorCount,
+            MaxRunspaces);
     }
     internal void PushRunspace(Runspace runspace)
     {
         if (_useNew)
         {
             runspace.Dispose();
-
-            lock (_created)
-            {
-                _created.Remove(runspace);
-                runspace = CreateRunspace();
-                _created.Add(runspace);
-            }
+            _created.TryRemove(runspace.InstanceId, out _);
+            runspace = CreateRunspace();
         }
 
         _pool.Enqueue(runspace);
@@ -60,6 +58,7 @@ internal sealed class RunspacePool : IDisposable
     private Runspace CreateRunspace()
     {
         Runspace rs = RunspaceFactory.CreateRunspace(_iss);
+        _created[rs.InstanceId] = rs;
         rs.Open();
         return rs;
     }
@@ -72,18 +71,12 @@ internal sealed class RunspacePool : IDisposable
             return runspace;
         }
 
-        lock (_created)
-        {
-            runspace = CreateRunspace();
-            _created.Add(runspace);
-        }
-
-        return runspace;
+        return CreateRunspace();
     }
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _created)
+        foreach (Runspace runspace in _created.Values)
         {
             runspace.Dispose();
         }

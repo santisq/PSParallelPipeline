@@ -30,10 +30,17 @@ internal sealed class PSTask
         _pool = pool;
     }
 
-    static internal PSTask Create(RunspacePool runspacePool)
+    static internal async Task<PSTask> CreateAsync(
+        object? input,
+        RunspacePool runspacePool,
+        TaskSettings settings)
     {
         PSTask ps = new(runspacePool);
         HookStreams(ps._internalStreams, runspacePool.Streams);
+        ps.Runspace = await runspacePool.GetRunspaceAsync();
+        ps.AddInput(input);
+        ps.AddScript(settings.Script);
+        ps.AddUsingStatements(settings.UsingStatements);
         return ps;
     }
 
@@ -56,7 +63,7 @@ internal sealed class PSTask
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    internal PSTask AddInput(object? inputObject)
+    private void AddInput(object? inputObject)
     {
         if (inputObject is not null)
         {
@@ -65,17 +72,12 @@ internal sealed class PSTask
                 .AddArgument("_")
                 .AddArgument(inputObject);
         }
-
-        return this;
     }
 
-    internal PSTask AddScript(ScriptBlock script)
-    {
-        _powershell.AddScript(script.ToString(), useLocalScope: true);
-        return this;
-    }
+    private void AddScript(string script) =>
+        _powershell.AddScript(script, useLocalScope: true);
 
-    internal PSTask AddUsingStatements(Dictionary<string, object?> usingParams)
+    private void AddUsingStatements(Dictionary<string, object?> usingParams)
     {
         if (usingParams.Count > 0)
         {
@@ -84,18 +86,17 @@ internal sealed class PSTask
                 ["--%"] = usingParams
             });
         }
-
-        return this;
     }
 
     internal async Task InvokeAsync()
     {
         try
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(_powershell.Dispose);
-            Runspace = await _pool.GetRunspaceAsync();
+            using CancellationTokenRegistration _ = _pool.RegisterCancellation(_powershell.Stop);
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
+        catch (PipelineStoppedException)
+        { }
         catch (Exception exception)
         {
             OutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
