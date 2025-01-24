@@ -72,16 +72,8 @@ internal sealed class Worker
         { }
         finally
         {
-            await ProcessAllAsync(tasks);
+            await Task.WhenAll(tasks);
             _output.CompleteAdding();
-        }
-    }
-
-    private static async Task ProcessAllAsync(List<Task> tasks)
-    {
-        while (tasks.Count > 0)
-        {
-            await ProcessAnyAsync(tasks);
         }
     }
 
