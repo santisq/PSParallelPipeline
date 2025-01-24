@@ -7,7 +7,7 @@ using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
-internal sealed class PSTask : IDisposable
+internal sealed class PSTask
 {
     private readonly PowerShell _powershell;
 
@@ -15,29 +15,37 @@ internal sealed class PSTask : IDisposable
 
     private readonly RunspacePool _pool;
 
-    private PSOutputStreams OutputStreams { get => _pool.PSOutputStreams; }
+    private PSOutputStreams OutputStreams { get => _pool.Streams; }
 
-    internal Runspace Runspace
+    private Runspace Runspace
     {
         get => _powershell.Runspace;
         set => _powershell.Runspace = value;
     }
 
-    private PSTask(RunspacePool runspacePool)
+    private PSTask(RunspacePool pool)
     {
         _powershell = PowerShell.Create();
         _internalStreams = _powershell.Streams;
-        _pool = runspacePool;
+        _pool = pool;
     }
 
-    static internal PSTask Create(RunspacePool runspacePool)
+    static internal async Task<PSTask> CreateAsync(
+        object? input,
+        RunspacePool runspacePool,
+        TaskSettings settings)
     {
         PSTask ps = new(runspacePool);
-        HookStreams(ps._internalStreams, runspacePool.PSOutputStreams);
-        return ps;
+        SetStreams(ps._internalStreams, runspacePool.Streams);
+        ps.Runspace = await runspacePool.GetRunspaceAsync();
+
+        return ps
+            .AddInput(input)
+            .AddScript(settings.Script)
+            .AddUsingStatements(settings.UsingStatements);
     }
 
-    private static void HookStreams(
+    private static void SetStreams(
         PSDataStreams streams,
         PSOutputStreams outputStreams)
     {
@@ -56,36 +64,40 @@ internal sealed class PSTask : IDisposable
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    internal PSTask AddInputObject(Dictionary<string, object?> inputObject)
+    private PSTask AddInput(object? inputObject)
     {
-        _powershell
-            .AddCommand("Set-Variable", useLocalScope: true)
-            .AddParameters(inputObject);
-        return this;
-    }
-
-    internal PSTask AddScript(ScriptBlock script)
-    {
-        _powershell.AddScript(script.ToString(), useLocalScope: true);
-        return this;
-    }
-
-    internal void AddUsingStatements(Dictionary<string, object?> usingParams)
-    {
-        if (usingParams.Count > 0 )
+        if (inputObject is not null)
         {
-            _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
-            {
-                ["--%"] = usingParams
-            });
+            _powershell
+                .AddCommand("Set-Variable", useLocalScope: true)
+                .AddArgument("_")
+                .AddArgument(inputObject);
         }
+
+        return this;
+    }
+
+    private PSTask AddScript(string script)
+    {
+        _powershell.AddScript(script, useLocalScope: true);
+        return this;
+    }
+
+    private PSTask AddUsingStatements(Dictionary<string, object?> usingParams)
+    {
+        if (usingParams.Count > 0)
+        {
+            _powershell.AddParameter("--%", usingParams);
+        }
+
+        return this;
     }
 
     internal async Task InvokeAsync()
     {
         try
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(CancelCallback(this));
+            using CancellationTokenRegistration _ = _pool.RegisterCancellation(Cancel);
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
         catch (Exception exception)
@@ -94,20 +106,14 @@ internal sealed class PSTask : IDisposable
         }
         finally
         {
-            _pool.CompleteTask(this);
-            _pool.Release();
+            _powershell.Dispose();
+            _pool.PushRunspace(Runspace);
         }
     }
 
-    private static Action CancelCallback(PSTask psTask) => delegate
-    {
-        psTask.Dispose();
-        psTask.Runspace.Dispose();
-    };
-
-    public void Dispose()
+    private void Cancel()
     {
         _powershell.Dispose();
-        GC.SuppressFinalize(this);
+        Runspace.Dispose();
     }
 }

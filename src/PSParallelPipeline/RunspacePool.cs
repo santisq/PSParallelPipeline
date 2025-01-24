@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Management.Automation.Runspaces;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,89 +8,68 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
-    private CancellationToken Token { get => _worker.Token; }
+    private readonly CancellationToken _token;
 
-    private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
+    private readonly InitialSessionState _iss;
 
-    private Dictionary<string, object?> UsingStatements { get => _settings.UsingStatements; }
+    private readonly ConcurrentQueue<Runspace> _pool = [];
 
-    private int MaxRunspaces { get => _settings.MaxRunspaces; }
+    private readonly ConcurrentDictionary<Guid, Runspace> _created;
 
-    private readonly ConcurrentQueue<Runspace> _pool;
-
-    private readonly PoolSettings _settings;
-
-    private readonly Worker _worker;
-
-    private readonly List<Task> _tasks;
-
-    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
-
-    internal PSOutputStreams PSOutputStreams { get => _worker.OutputStreams; }
+    private readonly bool _useNew;
 
     private readonly SemaphoreSlim _semaphore;
 
-    internal RunspacePool(PoolSettings settings, Worker worker)
+    internal PSOutputStreams Streams { get; }
+
+    internal int MaxRunspaces { get; }
+
+    internal RunspacePool(
+        PoolSettings settings,
+        PSOutputStreams streams,
+        CancellationToken token)
     {
-        _settings = settings;
-        _worker = worker;
-        _pool = new ConcurrentQueue<Runspace>();
-        _tasks = new List<Task>(MaxRunspaces);
+        (MaxRunspaces, _useNew, _iss) = settings;
+        Streams = streams;
+        _token = token;
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
+        _created = new ConcurrentDictionary<Guid, Runspace>(
+            Environment.ProcessorCount,
+            MaxRunspaces);
     }
 
-    internal void Release() => _semaphore.Release();
-
-    internal void CompleteTask(PSTask psTask)
+    internal void PushRunspace(Runspace runspace)
     {
-        psTask.Dispose();
-
-        if (UseNewRunspace)
+        if (_token.IsCancellationRequested)
         {
-            psTask.Runspace.Dispose();
             return;
         }
 
-        _pool.Enqueue(psTask.Runspace);
-    }
-
-    internal async Task EnqueueAsync(PSTask psTask)
-    {
-        psTask.AddUsingStatements(UsingStatements);
-        psTask.Runspace = await GetRunspaceAsync();
-        _tasks.Add(psTask.InvokeAsync());
-    }
-
-    internal async Task ProcessAllAsync()
-    {
-        while (_tasks.Count > 0)
+        if (_useNew)
         {
-            await ProcessAnyAsync();
+            runspace.Dispose();
+            _created.TryRemove(runspace.InstanceId, out _);
+            runspace = CreateRunspace();
         }
+
+        _pool.Enqueue(runspace);
+        _semaphore.Release();
     }
 
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
-        Token.Register(callback);
-
-    internal async Task WaitOnCancelAsync() => await Task.WhenAll(_tasks);
-
-    private async Task ProcessAnyAsync()
-    {
-        Task task = await Task.WhenAny(_tasks);
-        _tasks.Remove(task);
-        await task;
-    }
+        _token.Register(callback);
 
     private Runspace CreateRunspace()
     {
-        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
+        Runspace rs = RunspaceFactory.CreateRunspace(_iss);
+        _created[rs.InstanceId] = rs;
         rs.Open();
         return rs;
     }
 
-    private async Task<Runspace> GetRunspaceAsync()
+    internal async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphore.WaitAsync(Token);
+        await _semaphore.WaitAsync(_token);
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
@@ -102,7 +80,7 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        while (_pool.TryDequeue(out Runspace runspace))
+        foreach (Runspace runspace in _created.Values)
         {
             runspace.Dispose();
         }

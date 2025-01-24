@@ -2,16 +2,19 @@ using System;
 using System.Collections;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
+using System.Threading;
 using PSParallelPipeline.Poly;
 
 namespace PSParallelPipeline.Commands;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
-[Alias("parallel")]
+[Alias("parallel", "asparallel")]
 [OutputType(typeof(object))]
 public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {
     private Worker? _worker;
+
+    private readonly CancellationTokenSource _cts = new();
 
     [Parameter(Position = 0, Mandatory = true)]
     public ScriptBlock ScriptBlock { get; set; } = null!;
@@ -46,6 +49,11 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     protected override void BeginProcessing()
     {
+        if (TimeoutSeconds > 0)
+        {
+            _cts.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
+        }
+
         InitialSessionState iss = InitialSessionState
             .CreateDefault2()
             .AddFunctions(Functions, this)
@@ -55,28 +63,27 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             MaxRunspaces = ThrottleLimit,
             UseNewRunspace = UseNewRunspace,
-            InitialSessionState = iss,
+            InitialSessionState = iss
+        };
+
+        TaskSettings workerSettings = new()
+        {
+            Script = ScriptBlock.ToString(),
             UsingStatements = ScriptBlock.GetUsingParameters(this)
         };
 
-        _worker = new Worker(poolSettings);
-
-        if (TimeoutSeconds > 0)
-        {
-            _worker.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
-        }
-
+        _worker = new Worker(poolSettings, workerSettings, _cts.Token);
         _worker.Run();
     }
 
     protected override void ProcessRecord()
     {
         Dbg.Assert(_worker is not null);
-        this.ThrowIfInputObjectIsScriptBlock(InputObject);
+        InputObject.ThrowIfInputObjectIsScriptBlock(this);
 
         try
         {
-            _worker.Enqueue(InputObject, ScriptBlock);
+            _worker.Enqueue(InputObject);
             while (_worker.TryTake(out PSOutputData data))
             {
                 ProcessOutput(data);
@@ -84,18 +91,13 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
-            _worker.Cancel();
-            _worker.Wait();
+            CancelAndWait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
             _worker.Wait();
             exception.WriteTimeoutError(this);
-        }
-        catch (Exception exception)
-        {
-            exception.WriteUnspecifiedError(this);
         }
     }
 
@@ -110,22 +112,18 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             {
                 ProcessOutput(data);
             }
+
             _worker.Wait();
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
-            _worker.Cancel();
-            _worker.Wait();
+            CancelAndWait();
             throw;
         }
         catch (OperationCanceledException exception)
         {
             _worker.Wait();
             exception.WriteTimeoutError(this);
-        }
-        catch (Exception exception)
-        {
-            exception.WriteUnspecifiedError(this);
         }
     }
 
@@ -166,11 +164,18 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
     }
 
-    protected override void StopProcessing() => _worker?.Cancel();
+    private void CancelAndWait()
+    {
+        _cts.Cancel();
+        _worker?.Wait();
+    }
+
+    protected override void StopProcessing() => CancelAndWait();
 
     public void Dispose()
     {
         _worker?.Dispose();
+        _cts.Dispose();
         GC.SuppressFinalize(this);
     }
 }

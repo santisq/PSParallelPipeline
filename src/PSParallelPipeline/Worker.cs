@@ -3,92 +3,93 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Management.Automation;
 
 namespace PSParallelPipeline;
 
-internal sealed class Worker : IDisposable
+internal sealed class Worker
 {
-    private readonly BlockingCollection<PSTask> _inputQueue = [];
-
-    private readonly CancellationTokenSource _cts;
-
-    private readonly RunspacePool _runspacePool;
-
     private Task? _worker;
 
-    private readonly Dictionary<string, object?> _inputObject = new()
+    private readonly TaskSettings _taskSettings;
+
+    private readonly BlockingCollection<object?> _input = [];
+
+    private readonly BlockingCollection<PSOutputData> _output = [];
+
+    private readonly RunspacePool _pool;
+
+    private readonly CancellationToken _token;
+
+    private readonly PSOutputStreams _streams;
+
+    internal Worker(
+        PoolSettings poolSettings,
+        TaskSettings taskSettings,
+        CancellationToken token)
     {
-        ["Name"] = "_"
-    };
-
-    internal BlockingCollection<PSOutputData> OutputPipe { get; } = [];
-
-    internal CancellationToken Token { get => _cts.Token; }
-
-    internal PSOutputStreams OutputStreams { get; }
-
-    internal Worker(PoolSettings settings)
-    {
-        _cts = new CancellationTokenSource();
-        OutputStreams = new PSOutputStreams(this);
-        _runspacePool = new RunspacePool(settings, this);
+        _token = token;
+        _taskSettings = taskSettings;
+        _streams = new PSOutputStreams(_output);
+        _pool = new RunspacePool(poolSettings, _streams, _token);
     }
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
-    internal void Cancel() => _cts.Cancel();
-
-    internal void CancelAfter(TimeSpan span) => _cts.CancelAfter(span);
-
-    internal void Enqueue(object? input, ScriptBlock script)
-    {
-        _inputObject["Value"] = input;
-        _inputQueue.Add(
-            item: PSTask
-                .Create(_runspacePool)
-                .AddInputObject(_inputObject)
-                .AddScript(script),
-            cancellationToken: Token);
-    }
+    internal void Enqueue(object? input) => _input.Add(input, _token);
 
     internal bool TryTake(out PSOutputData output) =>
-        OutputPipe.TryTake(out output, 0, Token);
+        _output.TryTake(out output, 0, _token);
 
-    internal void CompleteInputAdding() => _inputQueue.CompleteAdding();
+    internal void CompleteInputAdding() => _input.CompleteAdding();
 
     internal IEnumerable<PSOutputData> GetConsumingEnumerable() =>
-        OutputPipe.GetConsumingEnumerable(Token);
+        _output.GetConsumingEnumerable(_token);
 
-    internal void Run() => _worker = Task.Run(Start, cancellationToken: Token);
+    internal void Run() => _worker = Task.Run(Start, cancellationToken: _token);
 
     private async Task Start()
     {
+        List<Task> tasks = new(_pool.MaxRunspaces);
+
         try
         {
-            while (!_inputQueue.IsCompleted)
+            foreach (object? input in _input.GetConsumingEnumerable(_token))
             {
-                if (_inputQueue.TryTake(out PSTask ps, 0, Token))
+                if (tasks.Count == tasks.Capacity)
                 {
-                    await _runspacePool.EnqueueAsync(ps);
+                    await ProcessAnyAsync(tasks);
                 }
-            }
 
-            await _runspacePool.ProcessAllAsync();
-            OutputPipe.CompleteAdding();
+                PSTask task = await PSTask.CreateAsync(
+                    input: input,
+                    runspacePool: _pool,
+                    settings: _taskSettings);
+
+                tasks.Add(task.InvokeAsync());
+            }
         }
         catch
+        { }
+        finally
         {
-            await _runspacePool.WaitOnCancelAsync();
+            await Task.WhenAll(tasks);
+            _output.CompleteAdding();
         }
+    }
+
+    private static async Task ProcessAnyAsync(List<Task> tasks)
+    {
+        Task task = await Task.WhenAny(tasks);
+        tasks.Remove(task);
+        await task;
     }
 
     public void Dispose()
     {
-        OutputStreams.Dispose();
-        _inputQueue.Dispose();
-        _cts.Dispose();
-        _runspacePool.Dispose();
+        _pool.Dispose();
+        _input.Dispose();
+        _streams.Dispose();
+        _output.Dispose();
         GC.SuppressFinalize(this);
     }
 }
