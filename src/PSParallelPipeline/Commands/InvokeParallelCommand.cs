@@ -8,7 +8,7 @@ using PSParallelPipeline.Poly;
 namespace PSParallelPipeline.Commands;
 
 [Cmdlet(VerbsLifecycle.Invoke, "Parallel")]
-[Alias("parallel")]
+[Alias("parallel", "asparallel")]
 [OutputType(typeof(object))]
 public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 {

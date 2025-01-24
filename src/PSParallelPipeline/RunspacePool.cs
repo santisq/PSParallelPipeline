@@ -11,67 +11,55 @@ internal sealed class RunspacePool : IDisposable
 {
     private CancellationToken Token { get; }
 
-    private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
-
-    internal int MaxRunspaces { get => _settings.MaxRunspaces; }
+    private readonly InitialSessionState _iss;
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
 
-    private readonly PoolSettings _settings;
+    private readonly List<Runspace> _created;
 
-    // private readonly List<Task> _tasks;
+    private readonly bool _useNew;
 
-    internal bool UseNewRunspace { get => _settings.UseNewRunspace; }
+    private readonly SemaphoreSlim _semaphore;
 
     internal PSOutputStreams Streams { get; }
 
-    private readonly SemaphoreSlim _semaphore;
+    internal int MaxRunspaces { get; }
 
     internal RunspacePool(
         PoolSettings settings,
         PSOutputStreams streams,
         CancellationToken token)
     {
+        (MaxRunspaces, _useNew, _iss) = settings;
         Streams = streams;
         Token = token;
-        _settings = settings;
-        // _tasks = new List<Task>(MaxRunspaces);
+        _created = new List<Runspace>(MaxRunspaces);
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
     }
+    internal void PushRunspace(Runspace runspace)
+    {
+        if (_useNew)
+        {
+            runspace.Dispose();
 
-    internal void Release() => _semaphore.Release();
+            lock (_created)
+            {
+                _created.Remove(runspace);
+                runspace = CreateRunspace();
+                _created.Add(runspace);
+            }
+        }
 
-    internal void PushRunspace(Runspace runspace) => _pool.Enqueue(runspace);
-
-    // internal async Task EnqueueAsync(PSTask psTask)
-    // {
-    //     psTask.Runspace = await GetRunspaceAsync();
-    //     _tasks.Add(psTask.InvokeAsync());
-    // }
-
-    // internal async Task ProcessAllAsync()
-    // {
-    //     while (_tasks.Count > 0)
-    //     {
-    //         await ProcessAnyAsync();
-    //     }
-    // }
+        _pool.Enqueue(runspace);
+        _semaphore.Release();
+    }
 
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
-    // internal void WaitOnCancel() => Task.WhenAll(_tasks).GetAwaiter().GetResult();
-
-    // private async Task ProcessAnyAsync()
-    // {
-    //     Task task = await Task.WhenAny(_tasks);
-    //     _tasks.Remove(task);
-    //     await task;
-    // }
-
     private Runspace CreateRunspace()
     {
-        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
+        Runspace rs = RunspaceFactory.CreateRunspace(_iss);
         rs.Open();
         return rs;
     }
@@ -84,12 +72,18 @@ internal sealed class RunspacePool : IDisposable
             return runspace;
         }
 
-        return CreateRunspace();
+        lock (_created)
+        {
+            runspace = CreateRunspace();
+            _created.Add(runspace);
+        }
+
+        return runspace;
     }
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _pool)
+        foreach (Runspace runspace in _created)
         {
             runspace.Dispose();
         }

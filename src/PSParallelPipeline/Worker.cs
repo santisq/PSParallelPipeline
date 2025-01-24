@@ -17,49 +17,43 @@ internal sealed class Worker
 
     private readonly RunspacePool _pool;
 
-    private readonly WorkerSettings _settings;
+    private readonly CancellationToken _token;
 
-    private readonly Dictionary<string, object?> _inputObject = new()
-    {
-        ["Name"] = "_"
-    };
+    private readonly Dictionary<string, object?> _usingParams;
 
-    internal CancellationToken Token { get => _settings.Token; }
-
-    internal PSOutputStreams Streams { get; }
+    private readonly PSOutputStreams _streams;
 
     internal Worker(
         PoolSettings poolSettings,
         WorkerSettings workerSettings)
     {
-        Streams = new PSOutputStreams(_output);
-        _settings = workerSettings;
-        _pool = new RunspacePool(poolSettings, Streams, Token);
+        (_usingParams, _token) = workerSettings;
+        _streams = new PSOutputStreams(_output);
+        _pool = new RunspacePool(poolSettings, _streams, _token);
     }
 
     internal void Wait() => _worker?.GetAwaiter().GetResult();
 
     internal void Enqueue(object? input, ScriptBlock script)
     {
-        _inputObject["Value"] = input;
         _input.Add(
             item: PSTask
                 .Create(_pool)
-                .AddInputObject(_inputObject)
+                .AddInput(input)
                 .AddScript(script)
-                .AddUsingStatements(_settings.UsingStatements),
-            cancellationToken: Token);
+                .AddUsingStatements(_usingParams),
+            cancellationToken: _token);
     }
 
     internal bool TryTake(out PSOutputData output) =>
-        _output.TryTake(out output, 0, Token);
+        _output.TryTake(out output, 0, _token);
 
     internal void CompleteInputAdding() => _input.CompleteAdding();
 
     internal IEnumerable<PSOutputData> GetConsumingEnumerable() =>
-        _output.GetConsumingEnumerable(Token);
+        _output.GetConsumingEnumerable(_token);
 
-    internal void Run() => _worker = Task.Run(Start, cancellationToken: Token);
+    internal void Run() => _worker = Task.Run(Start, cancellationToken: _token);
 
     private async Task Start()
     {
@@ -74,9 +68,8 @@ internal sealed class Worker
                     await ProcessAnyAsync(tasks);
                 }
 
-                if (_input.TryTake(out PSTask ps, 0, Token))
+                if (_input.TryTake(out PSTask ps, 0, _token))
                 {
-                    ps.Runspace = await _pool.GetRunspaceAsync();
                     tasks.Add(ps.InvokeAsync());
                 }
             }
@@ -96,7 +89,7 @@ internal sealed class Worker
         }
     }
 
-    private async Task ProcessAnyAsync(List<Task> tasks)
+    private static async Task ProcessAnyAsync(List<Task> tasks)
     {
         Task task = await Task.WhenAny(tasks);
         tasks.Remove(task);
@@ -107,7 +100,7 @@ internal sealed class Worker
     {
         _pool.Dispose();
         _input.Dispose();
-        Streams.Dispose();
+        _streams.Dispose();
         _output.Dispose();
         GC.SuppressFinalize(this);
     }

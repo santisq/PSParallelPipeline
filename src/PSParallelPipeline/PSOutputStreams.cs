@@ -6,7 +6,7 @@ namespace PSParallelPipeline;
 
 internal sealed class PSOutputStreams : IDisposable
 {
-    private BlockingCollection<PSOutputData> OutputPipe { get; }
+    private BlockingCollection<PSOutputData> Output { get; }
 
     internal PSDataCollection<PSObject> Success { get; } = [];
 
@@ -24,11 +24,11 @@ internal sealed class PSOutputStreams : IDisposable
 
     internal PSOutputStreams(BlockingCollection<PSOutputData> output)
     {
-        OutputPipe = output;
+        Output = output;
         SetHandlers();
     }
 
-    internal void AddOutput(PSOutputData data) => OutputPipe.Add(data);
+    internal void AddOutput(PSOutputData data) => Output.Add(data);
 
     private void SetHandlers()
     {

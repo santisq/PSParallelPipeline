@@ -17,17 +17,17 @@ internal sealed class PSTask
 
     private PSOutputStreams OutputStreams { get => _pool.Streams; }
 
-    internal Runspace Runspace
+    private Runspace Runspace
     {
         get => _powershell.Runspace;
         set => _powershell.Runspace = value;
     }
 
-    private PSTask(RunspacePool runspacePool)
+    private PSTask(RunspacePool pool)
     {
         _powershell = PowerShell.Create();
         _internalStreams = _powershell.Streams;
-        _pool = runspacePool;
+        _pool = pool;
     }
 
     static internal PSTask Create(RunspacePool runspacePool)
@@ -56,11 +56,16 @@ internal sealed class PSTask
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    internal PSTask AddInputObject(Dictionary<string, object?> inputObject)
+    internal PSTask AddInput(object? inputObject)
     {
-        _powershell
-            .AddCommand("Set-Variable", useLocalScope: true)
-            .AddParameters(inputObject);
+        if (inputObject is not null)
+        {
+            _powershell
+                .AddCommand("Set-Variable", useLocalScope: true)
+                .AddArgument("_")
+                .AddArgument(inputObject);
+        }
+
         return this;
     }
 
@@ -72,7 +77,7 @@ internal sealed class PSTask
 
     internal PSTask AddUsingStatements(Dictionary<string, object?> usingParams)
     {
-        if (usingParams.Count > 0 )
+        if (usingParams.Count > 0)
         {
             _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
             {
@@ -88,6 +93,7 @@ internal sealed class PSTask
         try
         {
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(_powershell.Dispose);
+            Runspace = await _pool.GetRunspaceAsync();
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
         catch (Exception exception)
@@ -96,21 +102,8 @@ internal sealed class PSTask
         }
         finally
         {
-            Clean(this, _pool);
-            _pool.Release();
+            _powershell.Dispose();
+            _pool.PushRunspace(Runspace);
         }
-    }
-
-    private static void Clean(PSTask task, RunspacePool pool)
-    {
-        task._powershell.Dispose();
-
-        if (pool.UseNewRunspace)
-        {
-            task.Runspace.Dispose();
-            return;
-        }
-
-        pool.PushRunspace(task.Runspace);
     }
 }
