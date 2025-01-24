@@ -67,19 +67,21 @@ internal sealed class Worker
 
                 tasks.Add(task.InvokeAsync());
             }
-
-            while (tasks.Count > 0)
-            {
-                await ProcessAnyAsync(tasks);
-            }
         }
         catch
-        {
-            await Task.WhenAll(tasks);
-        }
+        { }
         finally
         {
+            await ProcessAllAsync(tasks);
             _output.CompleteAdding();
+        }
+    }
+
+    private static async Task ProcessAllAsync(List<Task> tasks)
+    {
+        while (tasks.Count > 0)
+        {
+            await ProcessAnyAsync(tasks);
         }
     }
 

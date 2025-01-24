@@ -8,13 +8,11 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
-    private CancellationToken Token { get; }
+    private readonly CancellationToken _token;
 
     private readonly InitialSessionState _iss;
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
-
-    // private readonly List<Runspace> _created;
 
     private readonly ConcurrentDictionary<Guid, Runspace> _created;
 
@@ -33,14 +31,20 @@ internal sealed class RunspacePool : IDisposable
     {
         (MaxRunspaces, _useNew, _iss) = settings;
         Streams = streams;
-        Token = token;
+        _token = token;
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
         _created = new ConcurrentDictionary<Guid, Runspace>(
             Environment.ProcessorCount,
             MaxRunspaces);
     }
+
     internal void PushRunspace(Runspace runspace)
     {
+        if (_token.IsCancellationRequested)
+        {
+            return;
+        }
+
         if (_useNew)
         {
             runspace.Dispose();
@@ -52,8 +56,7 @@ internal sealed class RunspacePool : IDisposable
         _semaphore.Release();
     }
 
-    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
-        Token.Register(callback);
+    internal CancellationTokenRegistration RegisterCancellation(Action callback) => _token.Register(callback);
 
     private Runspace CreateRunspace()
     {
@@ -65,7 +68,7 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphore.WaitAsync(Token);
+        await _semaphore.WaitAsync(_token);
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;

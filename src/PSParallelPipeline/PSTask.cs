@@ -89,11 +89,9 @@ internal sealed class PSTask
     {
         try
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(_powershell.Stop);
+            using CancellationTokenRegistration _ = _pool.RegisterCancellation(Cancel);
             await InvokePowerShellAsync(_powershell, OutputStreams.Success);
         }
-        catch (PipelineStoppedException)
-        { }
         catch (Exception exception)
         {
             OutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
@@ -103,5 +101,11 @@ internal sealed class PSTask
             _powershell.Dispose();
             _pool.PushRunspace(Runspace);
         }
+    }
+
+    private void Cancel()
+    {
+        _powershell.Dispose();
+        Runspace.Dispose();
     }
 }
