@@ -63,23 +63,44 @@ internal sealed class Worker
 
     private async Task Start()
     {
+        List<Task> tasks = new(_pool.MaxRunspaces);
+
         try
         {
             while (!_input.IsCompleted)
             {
+                if (tasks.Count == tasks.Capacity)
+                {
+                    await ProcessAnyAsync(tasks);
+                }
+
                 if (_input.TryTake(out PSTask ps, 0, Token))
                 {
-                    await _pool.EnqueueAsync(ps);
+                    ps.Runspace = await _pool.GetRunspaceAsync();
+                    tasks.Add(ps.InvokeAsync());
                 }
             }
 
-            await _pool.ProcessAllAsync();
-            _output.CompleteAdding();
+            while (tasks.Count > 0)
+            {
+                await ProcessAnyAsync(tasks);
+            }
         }
         catch
         {
-            _pool.WaitOnCancel();
+            await Task.WhenAll(tasks);
         }
+        finally
+        {
+            _output.CompleteAdding();
+        }
+    }
+
+    private async Task ProcessAnyAsync(List<Task> tasks)
+    {
+        Task task = await Task.WhenAny(tasks);
+        tasks.Remove(task);
+        await task;
     }
 
     public void Dispose()

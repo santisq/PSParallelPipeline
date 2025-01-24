@@ -13,13 +13,13 @@ internal sealed class RunspacePool : IDisposable
 
     private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
-    private int MaxRunspaces { get => _settings.MaxRunspaces; }
+    internal int MaxRunspaces { get => _settings.MaxRunspaces; }
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
 
     private readonly PoolSettings _settings;
 
-    private readonly List<Task> _tasks;
+    // private readonly List<Task> _tasks;
 
     internal bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
@@ -35,7 +35,7 @@ internal sealed class RunspacePool : IDisposable
         Streams = streams;
         Token = token;
         _settings = settings;
-        _tasks = new List<Task>(MaxRunspaces);
+        // _tasks = new List<Task>(MaxRunspaces);
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
     }
 
@@ -43,31 +43,31 @@ internal sealed class RunspacePool : IDisposable
 
     internal void PushRunspace(Runspace runspace) => _pool.Enqueue(runspace);
 
-    internal async Task EnqueueAsync(PSTask psTask)
-    {
-        psTask.Runspace = await GetRunspaceAsync();
-        _tasks.Add(psTask.InvokeAsync());
-    }
+    // internal async Task EnqueueAsync(PSTask psTask)
+    // {
+    //     psTask.Runspace = await GetRunspaceAsync();
+    //     _tasks.Add(psTask.InvokeAsync());
+    // }
 
-    internal async Task ProcessAllAsync()
-    {
-        while (_tasks.Count > 0)
-        {
-            await ProcessAnyAsync();
-        }
-    }
+    // internal async Task ProcessAllAsync()
+    // {
+    //     while (_tasks.Count > 0)
+    //     {
+    //         await ProcessAnyAsync();
+    //     }
+    // }
 
     internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
         Token.Register(callback);
 
-    internal void WaitOnCancel() => Task.WhenAll(_tasks).GetAwaiter().GetResult();
+    // internal void WaitOnCancel() => Task.WhenAll(_tasks).GetAwaiter().GetResult();
 
-    private async Task ProcessAnyAsync()
-    {
-        Task task = await Task.WhenAny(_tasks);
-        _tasks.Remove(task);
-        await task;
-    }
+    // private async Task ProcessAnyAsync()
+    // {
+    //     Task task = await Task.WhenAny(_tasks);
+    //     _tasks.Remove(task);
+    //     await task;
+    // }
 
     private Runspace CreateRunspace()
     {
@@ -76,7 +76,7 @@ internal sealed class RunspacePool : IDisposable
         return rs;
     }
 
-    private async Task<Runspace> GetRunspaceAsync()
+    internal async Task<Runspace> GetRunspaceAsync()
     {
         await _semaphore.WaitAsync(Token);
         if (_pool.TryDequeue(out Runspace runspace))
