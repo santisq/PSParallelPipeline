@@ -79,7 +79,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     protected override void ProcessRecord()
     {
         Dbg.Assert(_worker is not null);
-        this.ThrowIfInputObjectIsScriptBlock(InputObject);
+        InputObject.ThrowIfInputObjectIsScriptBlock(this);
 
         try
         {

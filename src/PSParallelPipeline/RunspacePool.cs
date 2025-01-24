@@ -56,7 +56,8 @@ internal sealed class RunspacePool : IDisposable
         _semaphore.Release();
     }
 
-    internal CancellationTokenRegistration RegisterCancellation(Action callback) => _token.Register(callback);
+    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
+        _token.Register(callback);
 
     private Runspace CreateRunspace()
     {

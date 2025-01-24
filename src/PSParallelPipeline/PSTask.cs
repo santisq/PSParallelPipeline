@@ -36,15 +36,16 @@ internal sealed class PSTask
         TaskSettings settings)
     {
         PSTask ps = new(runspacePool);
-        HookStreams(ps._internalStreams, runspacePool.Streams);
+        SetStreams(ps._internalStreams, runspacePool.Streams);
         ps.Runspace = await runspacePool.GetRunspaceAsync();
-        ps.AddInput(input);
-        ps.AddScript(settings.Script);
-        ps.AddUsingStatements(settings.UsingStatements);
-        return ps;
+
+        return ps
+            .AddInput(input)
+            .AddScript(settings.Script)
+            .AddUsingStatements(settings.UsingStatements);
     }
 
-    private static void HookStreams(
+    private static void SetStreams(
         PSDataStreams streams,
         PSOutputStreams outputStreams)
     {
@@ -63,7 +64,7 @@ internal sealed class PSTask
             powerShell.BeginInvoke<PSObject, PSObject>(null, output),
             powerShell.EndInvoke);
 
-    private void AddInput(object? inputObject)
+    private PSTask AddInput(object? inputObject)
     {
         if (inputObject is not null)
         {
@@ -72,17 +73,24 @@ internal sealed class PSTask
                 .AddArgument("_")
                 .AddArgument(inputObject);
         }
+
+        return this;
     }
 
-    private void AddScript(string script) =>
+    private PSTask AddScript(string script)
+    {
         _powershell.AddScript(script, useLocalScope: true);
+        return this;
+    }
 
-    private void AddUsingStatements(Dictionary<string, object?> usingParams)
+    private PSTask AddUsingStatements(Dictionary<string, object?> usingParams)
     {
         if (usingParams.Count > 0)
         {
             _powershell.AddParameter("--%", usingParams);
         }
+
+        return this;
     }
 
     internal async Task InvokeAsync()

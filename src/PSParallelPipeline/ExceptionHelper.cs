@@ -56,7 +56,7 @@ internal static class ExceptionHelper
             value));
     }
 
-    internal static void ThrowIfInputObjectIsScriptBlock(this PSCmdlet cmdlet, object? value)
+    internal static void ThrowIfInputObjectIsScriptBlock(this object? value, PSCmdlet cmdlet)
     {
         if (ValueIsNotScriptBlock(value))
         {
