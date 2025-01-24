@@ -53,22 +53,19 @@ internal sealed class Worker
 
         try
         {
-            while (!_input.IsCompleted)
+            foreach (object? input in _input.GetConsumingEnumerable(_token))
             {
                 if (tasks.Count == tasks.Capacity)
                 {
                     await ProcessAnyAsync(tasks);
                 }
 
-                if (_input.TryTake(out object? input, 0, _token))
-                {
-                    PSTask task = await PSTask.CreateAsync(
-                        input: input,
-                        runspacePool: _pool,
-                        settings: _taskSettings);
+                PSTask task = await PSTask.CreateAsync(
+                    input: input,
+                    runspacePool: _pool,
+                    settings: _taskSettings);
 
-                    tasks.Add(task.InvokeAsync());
-                }
+                tasks.Add(task.InvokeAsync());
             }
 
             while (tasks.Count > 0)

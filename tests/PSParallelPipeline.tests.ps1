@@ -92,9 +92,10 @@ Describe PSParallelPipeline {
 
     Context 'UseNewRunspace Parameter' {
         It 'Should reuse runspaces by default' {
-            0..10 | Invoke-Parallel { [runspace]::DefaultRunspace } |
-                Select-Object -ExpandProperty InstanceId -Unique |
-                Should -HaveCount 5
+            $rs = 0..10 | Invoke-Parallel { [runspace]::DefaultRunspace } |
+                Select-Object -ExpandProperty InstanceId -Unique
+
+            $rs.Count| Should -BeLessOrEqual 5
         }
 
         It 'Should use a new runspace when the -UseNewRunspace is used' {

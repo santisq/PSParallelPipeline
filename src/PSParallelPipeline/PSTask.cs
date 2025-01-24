@@ -81,10 +81,7 @@ internal sealed class PSTask
     {
         if (usingParams.Count > 0)
         {
-            _powershell.AddParameters(new Dictionary<string, Dictionary<string, object?>>
-            {
-                ["--%"] = usingParams
-            });
+            _powershell.AddParameter("--%", usingParams);
         }
     }
 
