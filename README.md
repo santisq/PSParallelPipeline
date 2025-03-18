@@ -10,16 +10,16 @@
 
 </div>
 
+`PSParallelPipeline` is a PowerShell module featuring the `Invoke-Parallel` cmdlet, designed to process pipeline input objects in parallel. It mirrors the capabilities of [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) from PowerShell 7.0+, bringing this functionality to Windows PowerShell 5.1, surpassing the constraints of [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
+
 PSParallelPipeline is a PowerShell Module that includes `Invoke-Parallel`, a cmdlet that allows for parallel processing of input objects, sharing similar capabilities as
 [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) introduced in PowerShell v7.0.
 
-This project was inspired by RamblingCookieMonster's [`Invoke-Parallel`](https://github.com/RamblingCookieMonster/Invoke-Parallel) and is developed with Windows PowerShell 5.1 users in mind where the closest there is to parallel pipeline processing is [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
+# Why Use This Module?
 
-# What does this Module offer?
+Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), `Invoke-Parallel` delivers the same capabilities as `ForEach-Object -Parallel` and adds support for [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters)—a feature missing from the built-in cmdlet.
 
-Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), this module offers the same capabilities as `ForEach-Object -Parallel` in addition to supporting [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters), a missing feature in the _built-in_ cmdlet.
-
-## Pipeline streaming capabilities
+## Streamlined Pipeline Processing
 
 ```powershell
 Measure-Command {
@@ -32,68 +32,36 @@ Measure-Command {
 #        1.06
 ```
 
-## Support for [CommonParameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4)
+## Common Parameters Support
 
-Something missing on `ForEach-Object -Parallel` as of `v7.5.0.3`.
-
-```powershell
-PS \> 0..5 | ForEach-Object -Parallel { Write-Error $_ } -ErrorAction Stop
-# ForEach-Object: The following common parameters are not currently supported in the Parallel parameter set:
-# ErrorAction, WarningAction, InformationAction, PipelineVariable
-```
-
-A few examples, they should all work properly, please submit an issue if not 😅.
+Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4), enhancing control and debugging.
 
 ```powershell
-PS \> 0..5 | Invoke-Parallel { Write-Error $_ } -ErrorAction Stop
+# Stops on first error
+0..5 | Invoke-Parallel { Write-Error $_ } -ErrorAction Stop
 # Invoke-Parallel: 0
 
-PS \>  0..5 | Invoke-Parallel { Write-Warning $_ } -WarningAction Stop
+# Stops on warnings
+0..5 | Invoke-Parallel { Write-Warning $_ } -WarningAction Stop
 # WARNING: 1
-# Invoke-Parallel: The running command stopped because the preference variable "WarningPreference" or common parameter is set to Stop: 1
+# Invoke-Parallel: The running command stopped because the preference variable "WarningPreference" is set to Stop: 1
 
-PS \> 0..5 | Invoke-Parallel { $_ } -PipelineVariable pipe | ForEach-Object { "[$pipe]" }
-# [0]
-# [1]
-# [5]
-# [2]
-# [3]
-# [4]
+# Pipeline variable support
+0..5 | Invoke-Parallel { $_ } -PipelineVariable pipe | ForEach-Object { "[$pipe]" }
+# [0] [1] [2] [3] [4] [5]
 ```
 
-## Improved `-TimeOutSeconds` error message
-
-In `ForEach-Object -Parallel` we get an error message per stopped parallel invocation instead of a single one.
-
-```powershell
-PS \>  0..10 | ForEach-Object -Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
-# 0
-# 1
-# 2
-# 3
-# 4
-# InvalidOperation: The pipeline has been stopped.
-# InvalidOperation: The pipeline has been stopped.
-# InvalidOperation: The pipeline has been stopped.
-# InvalidOperation: The pipeline has been stopped.
-# InvalidOperation: The pipeline has been stopped.
-```
-
-With `Invoke-Parallel` you get a single, _friendlier_, error message.
+## Cleaner Timeout Handling
 
 ```powershell
 PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
-# 0
-# 1
-# 2
-# 3
-# 4
+# 0 1 2 3 4
 # Invoke-Parallel: Timeout has been reached.
 ```
 
-## [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_language_keywords?view=powershell-7.4) Support
+## [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes?view=powershell-7.4#the-using-scope-modifier) Scope Support
 
-Same as `ForEach-Object -Parallel` you can use the `$using:` scope modifier to pass-in variables to the parallel invocations.
+Easily pass variables into parallel scopes with the `$using:` modifier, just like `ForEach-Object -Parallel`:
 
 ```powershell
 $message = 'world!'
@@ -101,32 +69,34 @@ $message = 'world!'
 # hello world!
 ```
 
-## `-Functions` and `-Variables` Parameters
+## `-Variables` and `-Functions` Parameters
 
-Both parameters are a quality of life addition, specially `-Functions`, which adds the locally defined functions to the runspaces [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate), a missing feature on `ForEach-Object -Parallel`. This is a much better alternative to passing-in the function definition to the parallel scope.
+These parameters enhance usability by simplifying script management:
 
-### [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables)
+- [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly to parallel runspaces.
 
-```powershell
-'hello ' | Invoke-Parallel { $_ + $msg } -Variables @{ msg = 'world!' }
-# hello world!
-```
+    ```powershell
+    'hello ' | Invoke-Parallel { $_ + $msg } -Variables @{ msg = 'world!' }
+    # hello world!
+    ```
 
-### [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions)
+- [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions): Use local functions in parallel scopes without redefining them.
 
-```powershell
-function Get-Message {param($MyParam) $MyParam + 'world!' }
-'hello ' | Invoke-Parallel { Get-Message $_ } -Functions Get-Message
-# hello world!
-```
+    ```powershell
+    function Get-Message {param($MyParam) $MyParam + 'world!' }
+    'hello ' | Invoke-Parallel { Get-Message $_ } -Functions Get-Message
+    # hello world!
+    ```
+
+Both parameters are quality-of-life enhancements, especially `-Functions`, which adds locally defined functions to the runspaces’ [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate)—a feature absent in `ForEach-Object -Parallel`. This is a far better option than passing function definitions into the parallel scope.
 
 ## Documentation
 
-Check out [__the docs__](./docs/en-US/Invoke-Parallel.md) for information about how to use this Module.
+Explore detailed usage in [__the docs__](./docs/en-US/Invoke-Parallel.md).
 
 ## Installation
 
-### Gallery
+### PowerShell Gallery
 
 The module is available through the [PowerShell Gallery](https://www.powershellgallery.com/packages/PSParallelPipeline):
 
@@ -134,7 +104,7 @@ The module is available through the [PowerShell Gallery](https://www.powershellg
 Install-Module PSParallelPipeline -Scope CurrentUser
 ```
 
-### Source
+### From Source
 
 ```powershell
 git clone 'https://github.com/santisq/PSParallelPipeline.git'
@@ -144,8 +114,9 @@ Set-Location ./PSParallelPipeline
 
 ## Requirements
 
-This module has no requirements and is fully compatible with __Windows PowerShell 5.1__ and [__PowerShell Core 7+__](https://github.com/PowerShell/PowerShell).
+- Compatible with __Windows PowerShell 5.1__ and __PowerShell Core 7+__
+- No external dependencies
 
 ## Contributing
 
-Contributions are more than welcome, if you wish to contribute, fork this repository and submit a pull request with the changes.
+Contributions are more than welcome! Fork the repo, make your changes, and submit a pull request. Check out the [source](./src/PSParallelPipeline/) for more details.
