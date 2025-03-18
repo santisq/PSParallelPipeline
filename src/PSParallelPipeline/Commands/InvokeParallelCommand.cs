@@ -59,18 +59,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             .AddFunctions(Functions, this)
             .AddVariables(Variables, this);
 
-        PoolSettings poolSettings = new()
-        {
-            MaxRunspaces = ThrottleLimit,
-            UseNewRunspace = UseNewRunspace,
-            InitialSessionState = iss
-        };
+        PoolSettings poolSettings = new(
+            ThrottleLimit, UseNewRunspace, iss);
 
-        TaskSettings workerSettings = new()
-        {
-            Script = ScriptBlock.ToString(),
-            UsingStatements = ScriptBlock.GetUsingParameters(this)
-        };
+        TaskSettings workerSettings = new(
+            ScriptBlock.ToString(),
+            ScriptBlock.GetUsingParameters(this));
 
         _worker = new Worker(poolSettings, workerSettings, _cts.Token);
         _worker.Run();

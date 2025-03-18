@@ -37,7 +37,9 @@ internal sealed class PSTask
     {
         PSTask ps = new(runspacePool);
         SetStreams(ps._internalStreams, runspacePool.Streams);
-        ps.Runspace = await runspacePool.GetRunspaceAsync();
+        ps.Runspace = await runspacePool
+            .GetRunspaceAsync()
+            .ConfigureAwait(false);
 
         return ps
             .AddInput(input)
@@ -98,7 +100,7 @@ internal sealed class PSTask
         try
         {
             using CancellationTokenRegistration _ = _pool.RegisterCancellation(Cancel);
-            await InvokePowerShellAsync(_powershell, OutputStreams.Success);
+            await InvokePowerShellAsync(_powershell, OutputStreams.Success).ConfigureAwait(false);
         }
         catch (Exception exception)
         {

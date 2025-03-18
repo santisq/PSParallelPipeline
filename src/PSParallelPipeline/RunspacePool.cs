@@ -8,28 +8,30 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
+    private readonly PoolSettings _settings;
+
     private readonly CancellationToken _token;
 
-    private readonly InitialSessionState _iss;
+    private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
 
     private readonly ConcurrentDictionary<Guid, Runspace> _created;
 
-    private readonly bool _useNew;
+    private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
     private readonly SemaphoreSlim _semaphore;
 
     internal PSOutputStreams Streams { get; }
 
-    internal int MaxRunspaces { get; }
+    internal int MaxRunspaces { get => _settings.MaxRunspaces; }
 
     internal RunspacePool(
         PoolSettings settings,
         PSOutputStreams streams,
         CancellationToken token)
     {
-        (MaxRunspaces, _useNew, _iss) = settings;
+        _settings = settings;
         Streams = streams;
         _token = token;
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
@@ -45,7 +47,7 @@ internal sealed class RunspacePool : IDisposable
             return;
         }
 
-        if (_useNew)
+        if (UseNewRunspace)
         {
             runspace.Dispose();
             _created.TryRemove(runspace.InstanceId, out _);
@@ -61,7 +63,7 @@ internal sealed class RunspacePool : IDisposable
 
     private Runspace CreateRunspace()
     {
-        Runspace rs = RunspaceFactory.CreateRunspace(_iss);
+        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
         _created[rs.InstanceId] = rs;
         rs.Open();
         return rs;
@@ -69,7 +71,10 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphore.WaitAsync(_token);
+        await _semaphore
+            .WaitAsync(_token)
+            .ConfigureAwait(false);
+
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
