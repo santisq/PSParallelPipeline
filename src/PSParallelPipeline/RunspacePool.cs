@@ -8,41 +8,34 @@ namespace PSParallelPipeline;
 
 internal sealed class RunspacePool : IDisposable
 {
+    private readonly SemaphoreSlim _semaphore;
+
     private readonly PoolSettings _settings;
-
-    private readonly CancellationToken _token;
-
-    private InitialSessionState InitialSessionState { get => _settings.InitialSessionState; }
 
     private readonly ConcurrentQueue<Runspace> _pool = [];
 
-    private readonly ConcurrentDictionary<Guid, Runspace> _created;
-
     private bool UseNewRunspace { get => _settings.UseNewRunspace; }
 
-    private readonly SemaphoreSlim _semaphore;
+    internal int MaxRunspaces { get => _settings.MaxRunspaces; }
+
+    internal CancellationToken Token { get; }
 
     internal PSOutputStreams Streams { get; }
-
-    internal int MaxRunspaces { get => _settings.MaxRunspaces; }
 
     internal RunspacePool(
         PoolSettings settings,
         PSOutputStreams streams,
         CancellationToken token)
     {
-        _settings = settings;
         Streams = streams;
-        _token = token;
+        Token = token;
+        _settings = settings;
         _semaphore = new SemaphoreSlim(MaxRunspaces, MaxRunspaces);
-        _created = new ConcurrentDictionary<Guid, Runspace>(
-            Environment.ProcessorCount,
-            MaxRunspaces);
     }
 
     internal void PushRunspace(Runspace runspace)
     {
-        if (_token.IsCancellationRequested)
+        if (Token.IsCancellationRequested)
         {
             return;
         }
@@ -50,7 +43,6 @@ internal sealed class RunspacePool : IDisposable
         if (UseNewRunspace)
         {
             runspace.Dispose();
-            _created.TryRemove(runspace.InstanceId, out _);
             runspace = CreateRunspace();
         }
 
@@ -58,13 +50,9 @@ internal sealed class RunspacePool : IDisposable
         _semaphore.Release();
     }
 
-    internal CancellationTokenRegistration RegisterCancellation(Action callback) =>
-        _token.Register(callback);
-
     private Runspace CreateRunspace()
     {
-        Runspace rs = RunspaceFactory.CreateRunspace(InitialSessionState);
-        _created[rs.InstanceId] = rs;
+        Runspace rs = RunspaceFactory.CreateRunspace(_settings.InitialSessionState);
         rs.Open();
         return rs;
     }
@@ -72,7 +60,7 @@ internal sealed class RunspacePool : IDisposable
     internal async Task<Runspace> GetRunspaceAsync()
     {
         await _semaphore
-            .WaitAsync(_token)
+            .WaitAsync(Token)
             .ConfigureAwait(false);
 
         if (_pool.TryDequeue(out Runspace runspace))
@@ -85,7 +73,7 @@ internal sealed class RunspacePool : IDisposable
 
     public void Dispose()
     {
-        foreach (Runspace runspace in _created.Values)
+        foreach (Runspace runspace in _pool)
         {
             runspace.Dispose();
         }

@@ -33,7 +33,7 @@ internal sealed class Worker
         _pool = new RunspacePool(poolSettings, _streams, _token);
     }
 
-    internal void Wait() => _worker?.ConfigureAwait(false).GetAwaiter().GetResult();
+    internal void WaitForCompletion() => _worker?.GetAwaiter().GetResult();
 
     internal void Enqueue(object? input) => _input.Add(input, _token);
 
@@ -58,17 +58,12 @@ internal sealed class Worker
                     await ProcessAnyAsync(tasks).ConfigureAwait(false);
                 }
 
-                PSTask task = await PSTask
-                    .CreateAsync(
-                        input: input,
-                        runspacePool: _pool,
-                        settings: _taskSettings)
-                    .ConfigureAwait(false);
-
-                tasks.Add(task.InvokeAsync());
+                tasks.Add(PSTask
+                    .Create(input, _pool, _taskSettings)
+                    .InvokeAsync());
             }
         }
-        catch
+        catch (OperationCanceledException)
         { }
         finally
         {
@@ -87,8 +82,7 @@ internal sealed class Worker
             .ConfigureAwait(false);
 
         tasks.Remove(task);
-        await task
-            .ConfigureAwait(false);
+        await task.ConfigureAwait(false);
     }
 
     public void Dispose()
