@@ -33,17 +33,15 @@ internal sealed class Worker
         _pool = new RunspacePool(poolSettings, _streams, _token);
     }
 
-    internal void Wait() => _worker?.GetAwaiter().GetResult();
+    internal void WaitForCompletion() => _worker?.GetAwaiter().GetResult();
 
     internal void Enqueue(object? input) => _input.Add(input, _token);
 
-    internal bool TryTake(out PSOutputData output) =>
-        _output.TryTake(out output, 0, _token);
+    internal bool TryTake(out PSOutputData output) => _output.TryTake(out output, 0, _token);
 
     internal void CompleteInputAdding() => _input.CompleteAdding();
 
-    internal IEnumerable<PSOutputData> GetConsumingEnumerable() =>
-        _output.GetConsumingEnumerable(_token);
+    internal IEnumerable<PSOutputData> GetConsumingEnumerable() => _output.GetConsumingEnumerable(_token);
 
     internal void Run() => _worker = Task.Run(Start, cancellationToken: _token);
 
@@ -57,31 +55,34 @@ internal sealed class Worker
             {
                 if (tasks.Count == tasks.Capacity)
                 {
-                    await ProcessAnyAsync(tasks);
+                    await ProcessAnyAsync(tasks).ConfigureAwait(false);
                 }
 
-                PSTask task = await PSTask.CreateAsync(
-                    input: input,
-                    runspacePool: _pool,
-                    settings: _taskSettings);
-
-                tasks.Add(task.InvokeAsync());
+                tasks.Add(PSTask
+                    .Create(input, _pool, _taskSettings)
+                    .InvokeAsync());
             }
         }
-        catch
+        catch (OperationCanceledException)
         { }
         finally
         {
-            await Task.WhenAll(tasks);
+            await Task
+                .WhenAll(tasks)
+                .ConfigureAwait(false);
+
             _output.CompleteAdding();
         }
     }
 
     private static async Task ProcessAnyAsync(List<Task> tasks)
     {
-        Task task = await Task.WhenAny(tasks);
+        Task task = await Task
+            .WhenAny(tasks)
+            .ConfigureAwait(false);
+
         tasks.Remove(task);
-        await task;
+        await task.ConfigureAwait(false);
     }
 
     public void Dispose()

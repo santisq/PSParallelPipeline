@@ -59,18 +59,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             .AddFunctions(Functions, this)
             .AddVariables(Variables, this);
 
-        PoolSettings poolSettings = new()
-        {
-            MaxRunspaces = ThrottleLimit,
-            UseNewRunspace = UseNewRunspace,
-            InitialSessionState = iss
-        };
+        PoolSettings poolSettings = new(
+            ThrottleLimit, UseNewRunspace, iss);
 
-        TaskSettings workerSettings = new()
-        {
-            Script = ScriptBlock.ToString(),
-            UsingStatements = ScriptBlock.GetUsingParameters(this)
-        };
+        TaskSettings workerSettings = new(
+            ScriptBlock.ToString(),
+            ScriptBlock.GetUsingParameters(this));
 
         _worker = new Worker(poolSettings, workerSettings, _cts.Token);
         _worker.Run();
@@ -96,7 +90,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.Wait();
+            _worker.WaitForCompletion();
             exception.WriteTimeoutError(this);
         }
     }
@@ -113,7 +107,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
                 ProcessOutput(data);
             }
 
-            _worker.Wait();
+            _worker.WaitForCompletion();
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
         {
@@ -122,7 +116,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.Wait();
+            _worker.WaitForCompletion();
             exception.WriteTimeoutError(this);
         }
     }
@@ -131,33 +125,33 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     {
         switch (data.Type)
         {
-            case Type.Success:
+            case OutputType.Success:
                 WriteObject(data.Output);
                 break;
 
-            case Type.Error:
+            case OutputType.Error:
                 WriteError((ErrorRecord)data.Output);
                 break;
 
-            case Type.Debug:
+            case OutputType.Debug:
                 DebugRecord debug = (DebugRecord)data.Output;
                 WriteDebug(debug.Message);
                 break;
 
-            case Type.Information:
+            case OutputType.Information:
                 WriteInformation((InformationRecord)data.Output);
                 break;
 
-            case Type.Progress:
+            case OutputType.Progress:
                 WriteProgress((ProgressRecord)data.Output);
                 break;
 
-            case Type.Verbose:
+            case OutputType.Verbose:
                 VerboseRecord verbose = (VerboseRecord)data.Output;
                 WriteVerbose(verbose.Message);
                 break;
 
-            case Type.Warning:
+            case OutputType.Warning:
                 WarningRecord warning = (WarningRecord)data.Output;
                 WriteWarning(warning.Message);
                 break;
@@ -167,7 +161,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     private void CancelAndWait()
     {
         _cts.Cancel();
-        _worker?.Wait();
+        _worker?.WaitForCompletion();
     }
 
     protected override void StopProcessing() => CancelAndWait();

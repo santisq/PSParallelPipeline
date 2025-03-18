@@ -1,36 +1,25 @@
 namespace PSParallelPipeline;
 
-internal enum Type
-{
-    Success,
-    Error,
-    Debug,
-    Information,
-    Progress,
-    Verbose,
-    Warning
-}
-
-internal record struct PSOutputData(Type Type, object Output)
+internal record struct PSOutputData(OutputType Type, object Output)
 {
     internal static PSOutputData WriteObject(object sendToPipeline) =>
-        new(Type.Success, sendToPipeline);
+        new(OutputType.Success, sendToPipeline);
 
     internal static PSOutputData WriteError(object error) =>
-        new(Type.Error, error);
+        new(OutputType.Error, error);
 
     internal static PSOutputData WriteDebug(object debug) =>
-        new(Type.Debug, debug);
+        new(OutputType.Debug, debug);
 
     internal static PSOutputData WriteInformation(object information) =>
-        new(Type.Information, information);
+        new(OutputType.Information, information);
 
     internal static PSOutputData WriteProgress(object progress) =>
-        new(Type.Progress, progress);
+        new(OutputType.Progress, progress);
 
     internal static PSOutputData WriteVerbose(object verbose) =>
-        new(Type.Verbose, verbose);
+        new(OutputType.Verbose, verbose);
 
     internal static PSOutputData WriteWarning(object warning) =>
-        new(Type.Warning, warning);
+        new(OutputType.Warning, warning);
 }

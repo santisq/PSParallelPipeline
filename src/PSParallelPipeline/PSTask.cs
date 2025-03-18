@@ -9,40 +9,64 @@ namespace PSParallelPipeline;
 
 internal sealed class PSTask
 {
+    private const string SetVariableCommand = "Set-Variable";
+
+    private const string DollarUnderbar = "_";
+
+    private const string StopParsingOp = "--%";
+
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _internalStreams;
 
+    private Runspace? _runspace;
+
+    private readonly PSOutputStreams _outputStreams;
+
+    private readonly CancellationToken _token;
+
     private readonly RunspacePool _pool;
-
-    private PSOutputStreams OutputStreams { get => _pool.Streams; }
-
-    private Runspace Runspace
-    {
-        get => _powershell.Runspace;
-        set => _powershell.Runspace = value;
-    }
 
     private PSTask(RunspacePool pool)
     {
         _powershell = PowerShell.Create();
         _internalStreams = _powershell.Streams;
+        _outputStreams = pool.Streams;
+        _token = pool.Token;
         _pool = pool;
     }
 
-    static internal async Task<PSTask> CreateAsync(
+    static internal PSTask Create(
         object? input,
         RunspacePool runspacePool,
         TaskSettings settings)
     {
         PSTask ps = new(runspacePool);
         SetStreams(ps._internalStreams, runspacePool.Streams);
-        ps.Runspace = await runspacePool.GetRunspaceAsync();
 
         return ps
             .AddInput(input)
             .AddScript(settings.Script)
             .AddUsingStatements(settings.UsingStatements);
+    }
+
+    internal async Task InvokeAsync()
+    {
+        try
+        {
+            using CancellationTokenRegistration _ = _token.Register(Cancel);
+            _runspace = await _pool.GetRunspaceAsync().ConfigureAwait(false);
+            _powershell.Runspace = _runspace;
+            await InvokePowerShellAsync(_powershell, _outputStreams.Success).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            _outputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+        }
+        finally
+        {
+            CompleteTask();
+        }
     }
 
     private static void SetStreams(
@@ -69,8 +93,8 @@ internal sealed class PSTask
         if (inputObject is not null)
         {
             _powershell
-                .AddCommand("Set-Variable", useLocalScope: true)
-                .AddArgument("_")
+                .AddCommand(SetVariableCommand, useLocalScope: true)
+                .AddArgument(DollarUnderbar)
                 .AddArgument(inputObject);
         }
 
@@ -87,33 +111,27 @@ internal sealed class PSTask
     {
         if (usingParams.Count > 0)
         {
-            _powershell.AddParameter("--%", usingParams);
+            _powershell.AddParameter(StopParsingOp, usingParams);
         }
 
         return this;
     }
 
-    internal async Task InvokeAsync()
+    private void CompleteTask()
     {
-        try
+        _powershell.Dispose();
+        if (!_token.IsCancellationRequested && _runspace is not null)
         {
-            using CancellationTokenRegistration _ = _pool.RegisterCancellation(Cancel);
-            await InvokePowerShellAsync(_powershell, OutputStreams.Success);
+            _pool.PushRunspace(_runspace);
+            return;
         }
-        catch (Exception exception)
-        {
-            OutputStreams.AddOutput(exception.CreateProcessingTaskError(this));
-        }
-        finally
-        {
-            _powershell.Dispose();
-            _pool.PushRunspace(Runspace);
-        }
+
+        _runspace?.Dispose();
     }
 
     private void Cancel()
     {
         _powershell.Dispose();
-        Runspace.Dispose();
+        _runspace?.Dispose();
     }
 }
