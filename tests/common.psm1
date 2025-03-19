@@ -16,24 +16,6 @@ function Complete {
     }
 }
 
-function Import-ModuleInRunspace {
-    param(
-        [Parameter(Mandatory)]
-        [runspace] $Runspace,
-
-        [Parameter(Mandatory)]
-        [string] $Path)
-
-    try {
-        $ps = [powershell]::Create().AddCommand('Import-Module').AddArgument($Path)
-        $ps.Runspace = $rs
-        $ps.Invoke()
-    }
-    finally {
-        if ($ps) { $ps.Dispose() }
-    }
-}
-
 function Assert-RunspaceCount {
     [CmdletBinding()]
     param(

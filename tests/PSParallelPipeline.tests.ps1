@@ -289,23 +289,23 @@ Describe PSParallelPipeline {
             $iss = [initialsessionstate]::CreateDefault2()
             $rs = [runspacefactory]::CreateRunspace($Host, $iss)
             $rs.Open()
-            Import-ModuleInRunspace $rs (Get-ModulePath)
         }
         AfterAll {
             $rs.Dispose()
         }
+
         It 'Disposes on CTRL+C' {
             Assert-RunspaceCount {
-                param([runspace] $runspace)
+                param([runspace] $runspace, [string] $path)
 
                 $scripts = @(
-                    'gcm invoke-parallel | out-host; 1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
-                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 -UseNewRunspace'
+                    'Import-Module $args[0]; 1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
+                    'Import-Module $args[0]; 1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 -UseNewRunspace'
                 )
 
                 $scripts | ForEach-Object {
                     try {
-                        $ps = [powershell]::Create().AddScript($_)
+                        $ps = [powershell]::Create().AddScript($_).AddArgument($path)
                         $ps.Runspace = $runspace
                         $timer = [Stopwatch]::StartNew()
                         $task = $ps.BeginInvoke()
@@ -323,7 +323,7 @@ Describe PSParallelPipeline {
                         $ps.Dispose()
                     }
                 }
-            } -ArgumentList $rs -TestCount 10
+            } -ArgumentList $rs, (Get-ModulePath) -TestCount 10
         }
 
         It 'Disposes on PipelineStoppedException' {
