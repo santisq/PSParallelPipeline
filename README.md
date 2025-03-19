@@ -10,13 +10,15 @@
 
 </div>
 
-`PSParallelPipeline` is a PowerShell module featuring the `Invoke-Parallel` cmdlet, designed to process pipeline input objects in parallel. It mirrors the capabilities of [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) from PowerShell 7.0+, bringing this functionality to Windows PowerShell 5.1, surpassing the constraints of [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
+`PSParallelPipeline` is a PowerShell module featuring the `Invoke-Parallel` cmdlet, designed to process pipeline input objects in parallel using multithreading. It mirrors the capabilities of [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) from PowerShell 7.0+, bringing this functionality to Windows PowerShell 5.1, surpassing the constraints of [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
 
 # Why Use This Module?
 
-Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), `Invoke-Parallel` delivers the same capabilities as `ForEach-Object -Parallel` and adds support for [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters)—a feature missing from the built-in cmdlet.
+Except for [`-AsJob`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object?view=powershell-7.4#-asjob), `Invoke-Parallel` delivers the same capabilities as `ForEach-Object -Parallel` and adds support for [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters)—a feature missing from the built-in cmdlet. For larger datasets or time-intensive tasks, `Invoke-Parallel` can significantly reduce execution time compared to sequential processing.
 
 ## Streamlined Pipeline Processing
+
+`Invoke-Parallel` can stream objects as they complete, a capability shared with `ForEach-Object -Parallel`. Each iteration sleeps for 1 second, but `Select-Object -First 1` stops the pipeline after the first object is available, resulting in a total time of ~1 second instead of 11 seconds if all `0..10` were processed sequentially.
 
 ```powershell
 Measure-Command {
@@ -44,8 +46,8 @@ Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Comm
 # Invoke-Parallel: The running command stopped because the preference variable "WarningPreference" is set to Stop: 1
 
 # Pipeline variable support
-0..5 | Invoke-Parallel { $_ } -PipelineVariable pipe | ForEach-Object { "[$pipe]" }
-# [0] [1] [2] [3] [4] [5]
+0..5 | Invoke-Parallel { $_ * 2 } -PipelineVariable pipe | ForEach-Object { "[$pipe]" }
+# [6] [0] [8] [2] [4] [10]
 ```
 
 ## Cleaner Timeout Handling
@@ -53,7 +55,7 @@ Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Comm
 Get a single, friendly timeout message instead of multiple errors:
 
 ```powershell
-PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
+0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # 0 1 2 3 4
 # Invoke-Parallel: Timeout has been reached.
 ```
@@ -69,8 +71,6 @@ $message = 'world!'
 ```
 
 ## `-Variables` and `-Functions` Parameters
-
-These parameters enhance usability by simplifying script management:
 
 - [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly to parallel runspaces.
 
@@ -113,7 +113,7 @@ Set-Location ./PSParallelPipeline
 
 ## Requirements
 
-- Compatible with __Windows PowerShell 5.1__ and __PowerShell Core 7+__
+- Compatible with _Windows PowerShell 5.1_ and _PowerShell 7+_
 - No external dependencies
 
 ## Contributing

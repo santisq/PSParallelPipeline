@@ -9,7 +9,7 @@ schema: 2.0.0
 
 ## SYNOPSIS
 
-Parallel processing of pipeline input objects.
+Executes parallel processing of pipeline input objects using multithreading.
 
 ## SYNTAX
 
@@ -27,7 +27,7 @@ Invoke-Parallel
 
 ## DESCRIPTION
 
-The `Invoke-Parallel` cmdlet enables parallel processing of input objects in PowerShell, offering functionality similar to `ForEach-Object -Parallel` introduced in PowerShell 7.0. It processes pipeline input across multiple threads, improving performance for tasks that benefit from parallel execution.
+The `Invoke-Parallel` cmdlet enables parallel processing of input objects in PowerShell, including __Windows PowerShell 5.1__, offering functionality similar to `ForEach-Object -Parallel` introduced in PowerShell 7.0. It processes pipeline input across multiple threads, improving performance for tasks that benefit from parallel execution.
 
 ## EXAMPLES
 
@@ -175,7 +175,11 @@ Accept wildcard characters: False
 
 ### -ThrottleLimit
 
-Sets the maximum number of script blocks executed in parallel across multiple threads. Additional input objects wait until the number of running script blocks falls below this limit. The default value is `5`.
+Sets the maximum number of script blocks executed in parallel across multiple threads. Additional input objects wait until the number of running script blocks falls below this limit.
+
+> [!NOTE]
+>
+> The default value is `5`.
 
 ```yaml
 Type: Int32
@@ -268,8 +272,6 @@ Returns objects produced by the script block.
 - By default, runspaces are reused from a pool to optimize resource usage. Using `-UseNewRunspace` increases memory and startup time but ensures isolation.
 
 ## RELATED LINKS
-
-Online Version
 
 [__ForEach-Object -Parallel__](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object)
 
