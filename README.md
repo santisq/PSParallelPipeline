@@ -89,13 +89,13 @@ $message = 'world!'
 
 Both parameters are quality-of-life enhancements, especially `-Functions`, which adds locally defined functions to the runspaces’ [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate)—a feature absent in `ForEach-Object -Parallel`. This is a far better option than passing function definitions into the parallel scope.
 
-## Documentation
+# Documentation
 
 Explore detailed usage in [__the docs__](./docs/en-US/Invoke-Parallel.md).
 
-## Installation
+# Installation
 
-### PowerShell Gallery
+## PowerShell Gallery
 
 The module is available through the [PowerShell Gallery](https://www.powershellgallery.com/packages/PSParallelPipeline):
 
@@ -103,7 +103,7 @@ The module is available through the [PowerShell Gallery](https://www.powershellg
 Install-Module PSParallelPipeline -Scope CurrentUser
 ```
 
-### From Source
+## From Source
 
 ```powershell
 git clone 'https://github.com/santisq/PSParallelPipeline.git'
@@ -111,11 +111,11 @@ Set-Location ./PSParallelPipeline
 ./build.ps1
 ```
 
-## Requirements
+# Requirements
 
 - Compatible with _Windows PowerShell 5.1_ and _PowerShell 7+_
 - No external dependencies
 
-## Contributing
+# Contributing
 
 Contributions are more than welcome! Fork the repo, make your changes, and submit a pull request. Check out the [source](./src/PSParallelPipeline/) for more details.
