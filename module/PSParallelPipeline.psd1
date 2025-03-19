@@ -29,7 +29,7 @@
     Copyright         = '(c) Santiago Squarzon. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description       = 'Includes Invoke-Parallel cmdlet, allowing for parallel processing of input objects, sharing similar capabilities as ForEach-Object -Parallel.'
+    Description       = 'Parallel processing of pipeline input with multithreading, extending ForEach-Object -Parallel to PowerShell 5.1 with added features.'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
