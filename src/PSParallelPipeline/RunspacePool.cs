@@ -35,11 +35,6 @@ internal sealed class RunspacePool : IDisposable
 
     internal void PushRunspace(Runspace runspace)
     {
-        if (Token.IsCancellationRequested)
-        {
-            return;
-        }
-
         if (UseNewRunspace)
         {
             runspace.Dispose();

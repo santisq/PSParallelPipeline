@@ -50,6 +50,8 @@ Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Comm
 
 ## Cleaner Timeout Handling
 
+Get a single, friendly timeout message instead of multiple errors:
+
 ```powershell
 PS \> 0..10 | Invoke-Parallel { $_; Start-Sleep 5 } -TimeoutSeconds 2
 # 0 1 2 3 4

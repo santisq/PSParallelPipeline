@@ -3,11 +3,8 @@ using namespace System.Management.Automation
 using namespace System.Diagnostics
 using namespace System.Collections.Concurrent
 
-$moduleName = (Get-Item ([Path]::Combine($PSScriptRoot, '..', 'module', '*.psd1'))).BaseName
-$manifestPath = [Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
-
-Import-Module $manifestPath
 Import-Module ([Path]::Combine($PSScriptRoot, 'common.psm1'))
+Import-Module (Get-ModulePath)
 
 Describe PSParallelPipeline {
     Context 'Output Streams' {
@@ -288,38 +285,45 @@ Describe PSParallelPipeline {
     }
 
     Context 'Runspace Disposal Assertions' {
-        It 'Disposes on CTRL+C' {
-            $rs = [runspacefactory]::CreateRunspace()
+        BeforeAll {
+            $iss = [initialsessionstate]::CreateDefault2()
+            $rs = [runspacefactory]::CreateRunspace($Host, $iss)
             $rs.Open()
-
+            Import-ModuleInRunspace $rs (Get-ModulePath)
+        }
+        AfterAll {
+            $rs.Dispose()
+        }
+        It 'Disposes on CTRL+C' {
             Assert-RunspaceCount {
                 param([runspace] $runspace)
 
                 $scripts = @(
-                    '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
+                    'gcm invoke-parallel | out-host; 1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 50'
                     '1..100 | Invoke-Parallel { Start-Sleep 1; $_ } -ThrottleLimit 100 -UseNewRunspace'
                 )
 
-                try {
-                    $ps = [powershell]::Create()
-                    $ps.Runspace = $runspace
-                    $scripts | ForEach-Object {
-                        $ps = $ps.AddScript($script).AddStatement()
+                $scripts | ForEach-Object {
+                    try {
+                        $ps = [powershell]::Create().AddScript($_)
+                        $ps.Runspace = $runspace
+                        $timer = [Stopwatch]::StartNew()
+                        $task = $ps.BeginInvoke()
+                        Start-Sleep 1
+                        $ps.Stop()
+                        while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
+                        $timer.Stop()
+                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
+
+                        if ($ps.HadErrors) {
+                            $ps.Streams.Error | Write-Host -ForegroundColor Red
+                        }
                     }
-                    $timer = [Stopwatch]::StartNew()
-                    $task = $ps.BeginInvoke()
-                    Start-Sleep 1
-                    $ps.Stop()
-                    while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
-                    $timer.Stop()
-                    $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
-                }
-                finally {
-                    $ps.Dispose()
+                    finally {
+                        $ps.Dispose()
+                    }
                 }
             } -ArgumentList $rs -TestCount 10
-
-            $rs.Dispose()
         }
 
         It 'Disposes on PipelineStoppedException' {

@@ -16,6 +16,24 @@ function Complete {
     }
 }
 
+function Import-ModuleInRunspace {
+    param(
+        [Parameter(Mandatory)]
+        [runspace] $Runspace,
+
+        [Parameter(Mandatory)]
+        [string] $Path)
+
+    try {
+        $ps = [powershell]::Create().AddCommand('Import-Module').AddArgument($Path)
+        $ps.Runspace = $rs
+        $ps.Invoke()
+    }
+    finally {
+        if ($ps) { $ps.Dispose() }
+    }
+}
+
 function Assert-RunspaceCount {
     [CmdletBinding()]
     param(
@@ -52,4 +70,9 @@ function Assert-RunspaceCount {
                 Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
         }
     }
+}
+
+function Get-ModulePath {
+    $moduleName = (Get-Item ([Path]::Combine($PSScriptRoot, '..', 'module', '*.psd1'))).BaseName
+    [Path]::Combine($PSScriptRoot, '..', 'output', $moduleName)
 }
