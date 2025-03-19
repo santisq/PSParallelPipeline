@@ -55,7 +55,12 @@ internal sealed class Worker
             {
                 if (tasks.Count == tasks.Capacity)
                 {
-                    await ProcessAnyAsync(tasks).ConfigureAwait(false);
+                    Task task = await Task
+                        .WhenAny(tasks)
+                        .ConfigureAwait(false);
+
+                    tasks.Remove(task);
+                    await task.ConfigureAwait(false);
                 }
 
                 tasks.Add(PSTask
@@ -73,16 +78,6 @@ internal sealed class Worker
 
             _output.CompleteAdding();
         }
-    }
-
-    private static async Task ProcessAnyAsync(List<Task> tasks)
-    {
-        Task task = await Task
-            .WhenAny(tasks)
-            .ConfigureAwait(false);
-
-        tasks.Remove(task);
-        await task.ConfigureAwait(false);
     }
 
     public void Dispose()

@@ -2,7 +2,7 @@ using System.Management.Automation.Runspaces;
 
 namespace PSParallelPipeline;
 
-internal class PoolSettings(
+internal sealed class PoolSettings(
     int maxRunspaces,
     bool useNewRunspace,
     InitialSessionState initialSessionState)

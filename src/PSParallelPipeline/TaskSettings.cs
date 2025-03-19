@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace PSParallelPipeline;
 
-internal class TaskSettings(
+internal sealed class TaskSettings(
     string script,
     Dictionary<string, object?> usingStatements)
 {
