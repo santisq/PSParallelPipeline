@@ -1,5 +1,7 @@
 ﻿using System;
+using System.IO;
 using System.Management.Automation;
+using Microsoft.PowerShell.Commands;
 
 namespace PSParallelPipeline;
 
@@ -88,5 +90,45 @@ internal static class ExceptionHelper
                 "UsingVariableCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
                 value));
+    }
+
+    internal static void ThrowIfInvalidProvider(
+        this ProviderInfo provider,
+        string path,
+        PSCmdlet cmdlet)
+    {
+        if (provider.ImplementingType == typeof(FileSystemProvider))
+        {
+            return;
+        }
+
+        ErrorRecord error = new(
+            new NotSupportedException(
+                $"The resolved path '{path}' is not a FileSystem path but '{provider.Name}'."),
+            "NotFileSystemPath",
+            ErrorCategory.InvalidArgument,
+            path);
+
+        cmdlet.ThrowTerminatingError(error);
+    }
+
+    internal static void ThrowIfNotDirectory(
+        this string path,
+        PSCmdlet cmdlet)
+    {
+        if (Directory.Exists(path))
+        {
+            return;
+        }
+
+        ErrorRecord error = new(
+            new ArgumentException(
+                $"The specified path '{path}' does not exist or is not a directory. " +
+                "The path must be a valid directory containing one or more PowerShell modules."),
+            "NotDirectoryPath",
+            ErrorCategory.InvalidArgument,
+            path);
+
+        cmdlet.ThrowTerminatingError(error);
     }
 }

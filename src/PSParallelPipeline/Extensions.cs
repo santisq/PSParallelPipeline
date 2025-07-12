@@ -62,13 +62,55 @@ internal static class Extensions
         return initialSessionState;
     }
 
+    internal static InitialSessionState ImportModules(
+        this InitialSessionState initialSessionState,
+        string[]? modulesToImport)
+    {
+        if (modulesToImport is not null)
+        {
+            initialSessionState.ImportPSModule(modulesToImport);
+        }
+
+        return initialSessionState;
+    }
+
+    internal static InitialSessionState ImportModulesFromPath(
+        this InitialSessionState initialSessionState,
+        string[]? modulePaths,
+        PSCmdlet cmdlet)
+    {
+
+        if (modulePaths is not null)
+        {
+            foreach (string path in modulePaths)
+            {
+                string resolved = cmdlet.ResolvePath(path);
+                initialSessionState.ImportPSModulesFromPath(resolved);
+            }
+        }
+
+        return initialSessionState;
+    }
+
+    private static string ResolvePath(this PSCmdlet cmdlet, string path)
+    {
+        string resolved = cmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+            path: path,
+            provider: out ProviderInfo provider,
+            drive: out _);
+
+        provider.ThrowIfInvalidProvider(path, cmdlet);
+        resolved.ThrowIfNotDirectory(cmdlet);
+        return resolved.TrimEnd('\\', '/');
+    }
+
     internal static Dictionary<string, object?> GetUsingParameters(
         this ScriptBlock script,
         PSCmdlet cmdlet)
     {
         Dictionary<string, object?> usingParams = [];
         IEnumerable<UsingExpressionAst> usingExpressionAsts = script.Ast
-            .FindAll((a) => a is UsingExpressionAst, true)
+            .FindAll(a => a is UsingExpressionAst, true)
             .Cast<UsingExpressionAst>();
 
         foreach (UsingExpressionAst usingStatement in usingExpressionAsts)
@@ -147,13 +189,15 @@ internal static class Extensions
             paramBlock: null,
             statements: new StatementBlockAst(
                 extent: ast.Extent,
-                statements: [ new PipelineAst(
-                    extent: ast.Extent,
-                    pipelineElements: [ new CommandExpressionAst(
+                statements: [
+                    new PipelineAst(
                         extent: ast.Extent,
-                        expression: lookupAst,
-                        redirections: null)
-                    ])
+                        pipelineElements: [
+                            new CommandExpressionAst(
+                                extent: ast.Extent,
+                                expression: lookupAst,
+                                redirections: null)
+                        ])
                 ],
                 traps: null),
             isFilter: false);
