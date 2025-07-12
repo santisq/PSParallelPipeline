@@ -52,10 +52,23 @@ internal sealed class PSTask
 
     internal async Task InvokeAsync()
     {
+        if (_token.IsCancellationRequested)
+        {
+            Cancel();
+            return;
+        }
+
         try
         {
             using CancellationTokenRegistration _ = _token.Register(Cancel);
             _runspace = await _pool.GetRunspaceAsync().ConfigureAwait(false);
+
+            if (_token.IsCancellationRequested)
+            {
+                Cancel();
+                return;
+            }
+
             _powershell.Runspace = _runspace;
             await InvokePowerShellAsync(_powershell, _outputStreams.Success).ConfigureAwait(false);
         }
@@ -120,13 +133,14 @@ internal sealed class PSTask
     private void CompleteTask()
     {
         _powershell.Dispose();
-        if (!_token.IsCancellationRequested && _runspace is not null)
+
+        if (_token.IsCancellationRequested || _runspace is null)
         {
-            _pool.PushRunspace(_runspace);
+            _runspace?.Dispose();
             return;
         }
 
-        _runspace?.Dispose();
+        _pool.PushRunspace(_runspace);
     }
 
     private void Cancel()
