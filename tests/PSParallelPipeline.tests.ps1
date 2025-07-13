@@ -159,9 +159,9 @@ Describe PSParallelPipeline {
                         ThrottleLimit  = 5
                         TimeOutSeconds = 1
                         ErrorAction    = 'Stop'
-                        ScriptBlock    = { Start-Sleep 10 }
+                        ScriptBlock    = { $_; Start-Sleep 10 }
                     }
-                    1..100 | Invoke-Parallel @invokeParallelSplat
+                    1..100000 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.2))
