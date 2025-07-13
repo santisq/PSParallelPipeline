@@ -53,11 +53,6 @@ internal sealed class Worker
         {
             foreach (object? input in _input.GetConsumingEnumerable(_token))
             {
-                if (_token.IsCancellationRequested)
-                {
-                    break;
-                }
-
                 if (tasks.Count == tasks.Capacity)
                 {
                     Task task = await Task

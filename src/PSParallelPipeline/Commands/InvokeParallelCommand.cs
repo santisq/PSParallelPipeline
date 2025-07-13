@@ -103,7 +103,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitForCompletion();
+            CancelAndWait();
             exception.WriteTimeoutError(this);
         }
     }
@@ -129,7 +129,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitForCompletion();
+            CancelAndWait();
             exception.WriteTimeoutError(this);
         }
     }

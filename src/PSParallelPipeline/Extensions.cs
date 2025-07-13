@@ -6,6 +6,7 @@ using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace PSParallelPipeline;
 
@@ -206,4 +207,11 @@ internal static class Extensions
             .GetScriptBlock()
             .InvokeReturnAsIs();
     }
+
+    internal static Task InvokePowerShellAsync(
+        this PowerShell powerShell,
+        PSDataCollection<PSObject> output)
+        => Task.Factory.FromAsync(
+            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
+            powerShell.EndInvoke);
 }

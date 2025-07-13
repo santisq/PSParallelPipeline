@@ -58,15 +58,8 @@ internal sealed class PSTask
         {
             using CancellationTokenRegistration _ = _token.Register(Cancel);
             _runspace = await _pool.GetRunspaceAsync().ConfigureAwait(false);
-
-            if (_token.IsCancellationRequested)
-            {
-                Cancel();
-                return;
-            }
-
             _powershell.Runspace = _runspace;
-            await InvokePowerShellAsync(_powershell, _outputStreams.Success).ConfigureAwait(false);
+            await _powershell.InvokePowerShellAsync(_outputStreams.Success).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -89,13 +82,6 @@ internal sealed class PSTask
         streams.Verbose = outputStreams.Verbose;
         streams.Warning = outputStreams.Warning;
     }
-
-    private static Task InvokePowerShellAsync(
-        PowerShell powerShell,
-        PSDataCollection<PSObject> output) =>
-        Task.Factory.FromAsync(
-            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
-            powerShell.EndInvoke);
 
     private PSTask AddInput(object? inputObject)
     {
@@ -128,26 +114,22 @@ internal sealed class PSTask
 
     private void CompleteTask()
     {
-        if (!_canceled)
-        {
-            _powershell.Dispose();
-        }
-
-        if (_token.IsCancellationRequested || _runspace is null)
+        if (_canceled)
         {
             _runspace?.Dispose();
             return;
         }
 
-        _pool.PushRunspace(_runspace);
+        _powershell.Dispose();
+        if (_runspace is not null)
+        {
+            _pool.PushRunspace(_runspace);
+        }
     }
 
-    private void Cancel()
+    internal void Cancel()
     {
-        if (!_canceled)
-        {
-            _powershell.Dispose();
-            _canceled = true;
-        }
+        _powershell.Dispose();
+        _canceled = true;
     }
 }
