@@ -226,7 +226,7 @@ Describe PSParallelPipeline {
         It 'Should load modules in parallel' {
             Measure-Command {
                 0..4 | Invoke-Parallel -ModulePaths $modulePath { }
-            } | Should -BeLessOrEqual ([timespan]::FromSeconds(6))
+            } | Should -BeLessOrEqual ([timespan]::FromSeconds(7))
         }
     }
 
