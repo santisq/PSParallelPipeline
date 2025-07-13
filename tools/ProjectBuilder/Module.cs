@@ -24,11 +24,11 @@ public sealed class Module
 
     private string? Release { get => _info.Project.Release; }
 
-    private readonly UriBuilder _builder = new(_base);
+    private readonly UriBuilder _builder = new(Base);
 
-    private const string _base = "https://www.powershellgallery.com";
+    private const string Base = "https://www.powershellgallery.com";
 
-    private const string _path = "api/v2/package/{0}/{1}";
+    private const string Path = "api/v2/package/{0}/{1}";
 
     private readonly ProjectInfo _info;
 
@@ -96,7 +96,7 @@ public sealed class Module
             }
 
             Console.WriteLine($"Installing build pre-req '{module}'");
-            _builder.Path = string.Format(_path, module, version);
+            _builder.Path = string.Format(Path, module, version);
             Task<string> task = GetModuleAsync(
                 uri: _builder.Uri.ToString(),
                 destination: destination,
@@ -129,10 +129,10 @@ public sealed class Module
     }
 
     private string GetDestination(string module) =>
-        Path.Combine(PreRequisitePath, Path.ChangeExtension(module, "zip"));
+        System.IO.Path.Combine(PreRequisitePath, System.IO.Path.ChangeExtension(module, "zip"));
 
     private string GetModulePath(string module) =>
-        Path.Combine(PreRequisitePath, module);
+        System.IO.Path.Combine(PreRequisitePath, module);
 
     private static async Task<string> GetModuleAsync(
         string uri,
@@ -153,7 +153,7 @@ public sealed class Module
 
     private static string InitPrerequisitePath(DirectoryInfo root)
     {
-        string path = Path.Combine(root.Parent.FullName, "tools", "Modules");
+        string path = System.IO.Path.Combine(root.Parent.FullName, "tools", "Modules");
         if (!Directory.Exists(path))
         {
             Directory.CreateDirectory(path);

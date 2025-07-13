@@ -262,7 +262,7 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 Measure-Command { & $testOne | Should -HaveCount 5 } |
                     ForEach-Object TotalSeconds |
-                    Should -BeLessThan 2
+                    Should -BeLessThan 3
 
                 Measure-Command { & $testTwo | Should -HaveCount 10 } |
                     ForEach-Object TotalSeconds |

@@ -7,7 +7,7 @@ namespace PSParallelPipeline;
 
 internal static class ExceptionHelper
 {
-    private const string _notsupported =
+    private const string NotSupported =
         "Passed-in script block variables are not supported, and can result in undefined behavior.";
 
     internal static void WriteTimeoutError(this Exception exception, PSCmdlet cmdlet) =>
@@ -52,7 +52,7 @@ internal static class ExceptionHelper
         }
 
         cmdlet.ThrowTerminatingError(new ErrorRecord(
-            new PSArgumentException(_notsupported),
+            new PSArgumentException(NotSupported),
             "PassedInVariableCannotBeScriptBlock",
             ErrorCategory.InvalidType,
             value));
@@ -69,7 +69,7 @@ internal static class ExceptionHelper
             new PSArgumentException(
                 string.Concat(
                     "Piped input object cannot be a script block. ",
-                    _notsupported)),
+                    NotSupported)),
                 "InputObjectCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
                 value));
@@ -86,7 +86,7 @@ internal static class ExceptionHelper
             new PSArgumentException(
                 string.Concat(
                     "A $using: variable cannot be a script block. ",
-                    _notsupported)),
+                    NotSupported)),
                 "UsingVariableCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
                 value));
