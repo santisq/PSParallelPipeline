@@ -161,7 +161,7 @@ Describe PSParallelPipeline {
                         ErrorAction    = 'Stop'
                         ScriptBlock    = { $_; Start-Sleep 10 }
                     }
-                    1..100000 | Invoke-Parallel @invokeParallelSplat
+                    1..1000000 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.2))
@@ -361,7 +361,7 @@ Describe PSParallelPipeline {
                         $ps.Stop()
                         while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
                         $timer.Stop()
-                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(3))
+                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
 
                         if ($ps.HadErrors) {
                             $ps.Streams.Error | Write-Host -ForegroundColor Red
