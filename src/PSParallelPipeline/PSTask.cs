@@ -15,6 +15,8 @@ internal sealed class PSTask
 
     private const string StopParsingOp = "--%";
 
+    private bool _canceled;
+
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _internalStreams;
@@ -36,7 +38,7 @@ internal sealed class PSTask
         _pool = pool;
     }
 
-    static internal PSTask Create(
+    internal static PSTask Create(
         object? input,
         RunspacePool runspacePool,
         TaskSettings settings)
@@ -52,12 +54,6 @@ internal sealed class PSTask
 
     internal async Task InvokeAsync()
     {
-        if (_token.IsCancellationRequested)
-        {
-            Cancel();
-            return;
-        }
-
         try
         {
             using CancellationTokenRegistration _ = _token.Register(Cancel);
@@ -132,7 +128,10 @@ internal sealed class PSTask
 
     private void CompleteTask()
     {
-        _powershell.Dispose();
+        if (!_canceled)
+        {
+            _powershell.Dispose();
+        }
 
         if (_token.IsCancellationRequested || _runspace is null)
         {
@@ -145,7 +144,10 @@ internal sealed class PSTask
 
     private void Cancel()
     {
-        _powershell.Dispose();
-        _runspace?.Dispose();
+        if (!_canceled)
+        {
+            _powershell.Dispose();
+            _canceled = true;
+        }
     }
 }

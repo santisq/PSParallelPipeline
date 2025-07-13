@@ -77,9 +77,10 @@ internal sealed class Worker
         { }
         finally
         {
-            await Task
-                .WhenAll(tasks)
-                .ConfigureAwait(false);
+            if (tasks.Count > 0)
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
 
             _output.CompleteAdding();
         }

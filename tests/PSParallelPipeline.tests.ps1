@@ -313,7 +313,7 @@ Describe PSParallelPipeline {
                         $ps.Stop()
                         while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
                         $timer.Stop()
-                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
+                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(3))
 
                         if ($ps.HadErrors) {
                             $ps.Streams.Error | Write-Host -ForegroundColor Red

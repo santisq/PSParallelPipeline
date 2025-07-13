@@ -47,12 +47,12 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     [ValidateNotNullOrEmpty]
     [ArgumentCompleter(typeof(ModuleCompleter))]
     [Alias("mn")]
-    public string[]? ModuleName { get; set; }
+    public string[]? ModuleNames { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
     [Alias("mp")]
-    public string[]? ModulePath { get; set; }
+    public string[]? ModulePaths { get; set; }
 
     [Parameter]
     [Alias("unr")]
@@ -69,8 +69,8 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             .CreateDefault2()
             .AddFunctions(Functions, this)
             .AddVariables(Variables, this)
-            .ImportModules(ModuleName)
-            .ImportModulesFromPath(ModulePath, this);
+            .ImportModules(ModuleNames)
+            .ImportModulesFromPath(ModulePaths, this);
 
         PoolSettings poolSettings = new(
             ThrottleLimit, UseNewRunspace, iss);
