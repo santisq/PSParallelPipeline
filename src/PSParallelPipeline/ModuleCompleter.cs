@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 
@@ -15,17 +16,16 @@ public sealed class ModuleCompleter : IArgumentCompleter
         CommandAst commandAst,
         IDictionary fakeBoundParameters)
     {
-        using PowerShell ps = PowerShell
+        using PowerShell powershell = PowerShell
             .Create(RunspaceMode.CurrentRunspace)
             .AddCommand("Get-Module")
             .AddParameter("ListAvailable");
 
-        foreach (PSModuleInfo module in ps.Invoke<PSModuleInfo>())
-        {
-            if (module.Name.StartsWith(wordToComplete, StringComparison.InvariantCultureIgnoreCase))
-            {
-                yield return new CompletionResult(module.Name);
-            }
-        }
+        return powershell
+            .Invoke<PSModuleInfo>()
+            .DistinctBy(e => e.Name)
+            .Where(e => e.Name.StartsWith(wordToComplete, StringComparison.InvariantCultureIgnoreCase))
+            .OrderBy(e => e.Name)
+            .Select(e => new CompletionResult(e.Name));
     }
 }

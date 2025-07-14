@@ -209,14 +209,28 @@ internal static class Extensions
             .InvokeReturnAsIs();
     }
 
-    internal static Task InvokePowerShellAsync(
+    internal static Task InvokePowerShellAsync<TOut>(
         this PowerShell powerShell,
-        PSDataCollection<PSObject> output)
+        PSDataCollection<TOut> output)
         => Task.Factory.FromAsync(
-            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
+            powerShell.BeginInvoke<PSObject, TOut>(null, output),
             powerShell.EndInvoke);
 
     internal static ConfiguredTaskAwaitable NoContext(this Task task) => task.ConfigureAwait(false);
 
     internal static ConfiguredTaskAwaitable<T> NoContext<T>(this Task<T> task) => task.ConfigureAwait(false);
+
+    public static IEnumerable<TSource> DistinctBy<TSource, TKey>(
+        this IEnumerable<TSource> source,
+        Func<TSource, TKey> keySelector)
+    {
+        HashSet<TKey> seenKeys = [];
+        foreach (TSource element in source)
+        {
+            if (seenKeys.Add(keySelector(element)))
+            {
+                yield return element;
+            }
+        }
+    }
 }
