@@ -8,7 +8,7 @@ namespace PSParallelPipeline;
 
 internal sealed class Worker
 {
-    private Task? _worker;
+    private readonly Task _worker;
 
     private readonly TaskSettings _taskSettings;
 
@@ -31,9 +31,10 @@ internal sealed class Worker
         _taskSettings = taskSettings;
         _streams = new PSOutputStreams(_output);
         _pool = new RunspacePool(poolSettings, _streams, _token);
+        _worker = Task.Run(Start, cancellationToken: _token);
     }
 
-    internal void WaitForCompletion() => _worker?.GetAwaiter().GetResult();
+    internal void WaitForCompletion() => _worker.GetAwaiter().GetResult();
 
     internal void Enqueue(object? input) => _input.Add(input, _token);
 
@@ -42,8 +43,6 @@ internal sealed class Worker
     internal void CompleteInputAdding() => _input.CompleteAdding();
 
     internal IEnumerable<PSOutputData> GetConsumingEnumerable() => _output.GetConsumingEnumerable(_token);
-
-    internal void Run() => _worker = Task.Run(Start, cancellationToken: _token);
 
     private async Task Start()
     {
@@ -55,10 +54,7 @@ internal sealed class Worker
             {
                 if (tasks.Count == tasks.Capacity)
                 {
-                    Task task = await Task
-                        .WhenAny(tasks)
-                        .NoContext();
-
+                    Task task = await Task.WhenAny(tasks).NoContext();
                     tasks.Remove(task);
                     await task.NoContext();
                 }
