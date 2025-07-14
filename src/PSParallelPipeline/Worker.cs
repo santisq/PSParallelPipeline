@@ -57,10 +57,10 @@ internal sealed class Worker
                 {
                     Task task = await Task
                         .WhenAny(tasks)
-                        .ConfigureAwait(false);
+                        .NoContext();
 
                     tasks.Remove(task);
-                    await task.ConfigureAwait(false);
+                    await task.NoContext();
                 }
 
                 tasks.Add(PSTask
@@ -72,9 +72,10 @@ internal sealed class Worker
         { }
         finally
         {
-            await Task
-                .WhenAll(tasks)
-                .ConfigureAwait(false);
+            if (tasks.Count > 0)
+            {
+                await Task.WhenAll(tasks).NoContext();
+            }
 
             _output.CompleteAdding();
         }

@@ -5,7 +5,9 @@ using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace PSParallelPipeline;
 
@@ -62,13 +64,55 @@ internal static class Extensions
         return initialSessionState;
     }
 
+    internal static InitialSessionState ImportModules(
+        this InitialSessionState initialSessionState,
+        string[]? modulesToImport)
+    {
+        if (modulesToImport is not null)
+        {
+            initialSessionState.ImportPSModule(modulesToImport);
+        }
+
+        return initialSessionState;
+    }
+
+    internal static InitialSessionState ImportModulesFromPath(
+        this InitialSessionState initialSessionState,
+        string[]? modulePaths,
+        PSCmdlet cmdlet)
+    {
+
+        if (modulePaths is not null)
+        {
+            foreach (string path in modulePaths)
+            {
+                string resolved = cmdlet.ResolvePath(path);
+                initialSessionState.ImportPSModulesFromPath(resolved);
+            }
+        }
+
+        return initialSessionState;
+    }
+
+    private static string ResolvePath(this PSCmdlet cmdlet, string path)
+    {
+        string resolved = cmdlet.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+            path: path,
+            provider: out ProviderInfo provider,
+            drive: out _);
+
+        provider.ThrowIfInvalidProvider(path, cmdlet);
+        resolved.ThrowIfNotDirectory(cmdlet);
+        return resolved.TrimEnd('\\', '/');
+    }
+
     internal static Dictionary<string, object?> GetUsingParameters(
         this ScriptBlock script,
         PSCmdlet cmdlet)
     {
         Dictionary<string, object?> usingParams = [];
         IEnumerable<UsingExpressionAst> usingExpressionAsts = script.Ast
-            .FindAll((a) => a is UsingExpressionAst, true)
+            .FindAll(a => a is UsingExpressionAst, true)
             .Cast<UsingExpressionAst>();
 
         foreach (UsingExpressionAst usingStatement in usingExpressionAsts)
@@ -147,13 +191,15 @@ internal static class Extensions
             paramBlock: null,
             statements: new StatementBlockAst(
                 extent: ast.Extent,
-                statements: [ new PipelineAst(
-                    extent: ast.Extent,
-                    pipelineElements: [ new CommandExpressionAst(
+                statements: [
+                    new PipelineAst(
                         extent: ast.Extent,
-                        expression: lookupAst,
-                        redirections: null)
-                    ])
+                        pipelineElements: [
+                            new CommandExpressionAst(
+                                extent: ast.Extent,
+                                expression: lookupAst,
+                                redirections: null)
+                        ])
                 ],
                 traps: null),
             isFilter: false);
@@ -162,4 +208,15 @@ internal static class Extensions
             .GetScriptBlock()
             .InvokeReturnAsIs();
     }
+
+    internal static Task InvokePowerShellAsync(
+        this PowerShell powerShell,
+        PSDataCollection<PSObject> output)
+        => Task.Factory.FromAsync(
+            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
+            powerShell.EndInvoke);
+
+    internal static ConfiguredTaskAwaitable NoContext(this Task task) => task.ConfigureAwait(false);
+
+    internal static ConfiguredTaskAwaitable<T> NoContext<T>(this Task<T> task) => task.ConfigureAwait(false);
 }

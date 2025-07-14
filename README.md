@@ -10,7 +10,7 @@
 
 </div>
 
-`PSParallelPipeline` is a PowerShell module featuring the `Invoke-Parallel` cmdlet, designed to process pipeline input objects in parallel using multithreading. It mirrors the capabilities of [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) from PowerShell 7.0+, bringing this functionality to Windows PowerShell 5.1, surpassing the constraints of [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob?view=powershell-7.4).
+`PSParallelPipeline` is a PowerShell module featuring the `Invoke-Parallel` cmdlet, designed to process pipeline input objects in parallel using multithreading. It mirrors the capabilities of [`ForEach-Object -Parallel`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object) from PowerShell 7.0+, bringing this functionality to Windows PowerShell 5.1, surpassing the constraints of [`Start-ThreadJob`](https://learn.microsoft.com/en-us/powershell/module/threadjob/start-threadjob).
 
 # Why Use This Module?
 
@@ -33,7 +33,7 @@ Measure-Command {
 
 ## Common Parameters Support
 
-Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-7.4), enhancing control and debugging.
+Unlike `ForEach-Object -Parallel` (up to v7.5), `Invoke-Parallel` supports [Common Parameters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters), enhancing control and debugging.
 
 ```powershell
 # Stops on first error
@@ -60,7 +60,7 @@ Get a single, friendly timeout message instead of multiple errors:
 # Invoke-Parallel: Timeout has been reached.
 ```
 
-## [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes?view=powershell-7.4#the-using-scope-modifier) Scope Support
+## [`$using:`](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes#the-using-scope-modifier) Scope Support
 
 Easily pass variables into parallel scopes with the `$using:` modifier, just like `ForEach-Object -Parallel`:
 
@@ -70,7 +70,7 @@ $message = 'world!'
 # hello world!
 ```
 
-## `-Variables` and `-Functions` Parameters
+## `-Variables`, `-Functions`, `-ModuleNames`, and `-ModulePaths` Parameters
 
 - [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly to parallel runspaces.
 
@@ -87,7 +87,22 @@ $message = 'world!'
     # hello world!
     ```
 
-Both parameters are quality-of-life enhancements, especially `-Functions`, which adds locally defined functions to the runspaces’ [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate)—a feature absent in `ForEach-Object -Parallel`. This is a far better option than passing function definitions into the parallel scope.
+- [`-ModuleNames` Parameter](./docs/en-US/Invoke-Parallel.md#-modulenames): Import system-installed modules into parallel runspaces by name, using modules discoverable via `$env:PSModulePath`.
+
+    ```powershell
+    Import-Csv users.csv | Invoke-Parallel { Get-ADUser $_.UserPrincipalName } -ModuleNames ActiveDirectory
+    # Imports ActiveDirectory module for Get-ADUser
+    ```
+
+- [`-ModulePaths` Parameter](./docs/en-US/Invoke-Parallel.md#-modulepaths): Import custom modules from specified directory paths into parallel runspaces.
+
+    ```powershell
+    $moduleDir = Join-Path $PSScriptRoot "CustomModule"
+    0..10 | Invoke-Parallel { Get-CustomCmdlet } -ModulePaths $moduleDir
+    # Imports custom module for Get-CustomCmdlet
+    ```
+
+These parameters are a quality-of-life enhancement, especially `-Functions`, which incorporates locally defined functions to the runspaces’ [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate)—a feature absent in `ForEach-Object -Parallel` and a far better option than passing function definitions into the parallel scope. The new `-ModuleNames` and `-ModulePaths` parameters simplify module integration by automatically loading system-installed and custom modules, respectively, eliminating the need for manual `Import-Module` calls within the script block.
 
 # Documentation
 

@@ -15,6 +15,8 @@ internal sealed class PSTask
 
     private const string StopParsingOp = "--%";
 
+    private bool _canceled;
+
     private readonly PowerShell _powershell;
 
     private readonly PSDataStreams _internalStreams;
@@ -36,7 +38,7 @@ internal sealed class PSTask
         _pool = pool;
     }
 
-    static internal PSTask Create(
+    internal static PSTask Create(
         object? input,
         RunspacePool runspacePool,
         TaskSettings settings)
@@ -55,9 +57,9 @@ internal sealed class PSTask
         try
         {
             using CancellationTokenRegistration _ = _token.Register(Cancel);
-            _runspace = await _pool.GetRunspaceAsync().ConfigureAwait(false);
+            _runspace = await _pool.GetRunspaceAsync().NoContext();
             _powershell.Runspace = _runspace;
-            await InvokePowerShellAsync(_powershell, _outputStreams.Success).ConfigureAwait(false);
+            await _powershell.InvokePowerShellAsync(_outputStreams.Success).NoContext();
         }
         catch (Exception exception)
         {
@@ -80,13 +82,6 @@ internal sealed class PSTask
         streams.Verbose = outputStreams.Verbose;
         streams.Warning = outputStreams.Warning;
     }
-
-    private static Task InvokePowerShellAsync(
-        PowerShell powerShell,
-        PSDataCollection<PSObject> output) =>
-        Task.Factory.FromAsync(
-            powerShell.BeginInvoke<PSObject, PSObject>(null, output),
-            powerShell.EndInvoke);
 
     private PSTask AddInput(object? inputObject)
     {
@@ -119,19 +114,22 @@ internal sealed class PSTask
 
     private void CompleteTask()
     {
-        _powershell.Dispose();
-        if (!_token.IsCancellationRequested && _runspace is not null)
+        if (_canceled)
         {
-            _pool.PushRunspace(_runspace);
+            _runspace?.Dispose();
             return;
         }
 
-        _runspace?.Dispose();
+        _powershell.Dispose();
+        if (_runspace is not null)
+        {
+            _pool.PushRunspace(_runspace);
+        }
     }
 
-    private void Cancel()
+    internal void Cancel()
     {
         _powershell.Dispose();
-        _runspace?.Dispose();
+        _canceled = true;
     }
 }

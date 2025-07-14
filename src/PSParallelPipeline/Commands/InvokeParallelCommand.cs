@@ -44,6 +44,17 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
     public string[]? Functions { get; set; }
 
     [Parameter]
+    [ValidateNotNullOrEmpty]
+    [ArgumentCompleter(typeof(ModuleCompleter))]
+    [Alias("mn")]
+    public string[]? ModuleNames { get; set; }
+
+    [Parameter]
+    [ValidateNotNullOrEmpty]
+    [Alias("mp")]
+    public string[]? ModulePaths { get; set; }
+
+    [Parameter]
     [Alias("unr")]
     public SwitchParameter UseNewRunspace { get; set; }
 
@@ -57,7 +68,9 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         InitialSessionState iss = InitialSessionState
             .CreateDefault2()
             .AddFunctions(Functions, this)
-            .AddVariables(Variables, this);
+            .AddVariables(Variables, this)
+            .ImportModules(ModuleNames)
+            .ImportModulesFromPath(ModulePaths, this);
 
         PoolSettings poolSettings = new(
             ThrottleLimit, UseNewRunspace, iss);
@@ -90,7 +103,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitForCompletion();
+            CancelAndWait();
             exception.WriteTimeoutError(this);
         }
     }
@@ -116,7 +129,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            _worker.WaitForCompletion();
+            CancelAndWait();
             exception.WriteTimeoutError(this);
         }
     }

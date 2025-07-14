@@ -38,7 +38,8 @@ internal sealed class RunspacePool : IDisposable
         if (UseNewRunspace)
         {
             runspace.Dispose();
-            runspace = CreateRunspace();
+            _semaphore.Release();
+            return;
         }
 
         _pool.Enqueue(runspace);
@@ -52,18 +53,19 @@ internal sealed class RunspacePool : IDisposable
         return rs;
     }
 
+    private Task<Runspace> CreateRunspaceAsync() =>
+        Task.Run(CreateRunspace, cancellationToken: Token);
+
     internal async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphore
-            .WaitAsync(Token)
-            .ConfigureAwait(false);
+        await _semaphore.WaitAsync(Token).NoContext();
 
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
         }
 
-        return CreateRunspace();
+        return await CreateRunspaceAsync().NoContext();
     }
 
     public void Dispose()

@@ -48,8 +48,14 @@ function Assert-RunspaceCount {
                 Start-Sleep $WaitSeconds
             }
 
-            Get-Runspace |
-                Should -HaveCount $count -Because 'Runspaces should be correctly disposed'
+            $shouldSplat = @{
+                HaveCount     = $true
+                Because       = 'Runspaces should be correctly disposed'
+                ErrorAction   = 'Stop'
+                ExpectedValue = $count
+            }
+
+            Get-Runspace | Should @shouldSplat
         }
     }
 }

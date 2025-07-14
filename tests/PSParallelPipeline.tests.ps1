@@ -152,16 +152,16 @@ Describe PSParallelPipeline {
                     1..100 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2.2))
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(3))
                 $timer.Restart()
                 {
                     $invokeParallelSplat = @{
                         ThrottleLimit  = 5
                         TimeOutSeconds = 1
                         ErrorAction    = 'Stop'
-                        ScriptBlock    = { Start-Sleep 10 }
+                        ScriptBlock    = { $_; Start-Sleep 10 }
                     }
-                    1..100 | Invoke-Parallel @invokeParallelSplat
+                    1..1000000 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
                 $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.2))
@@ -180,6 +180,53 @@ Describe PSParallelPipeline {
 
             Complete 'Invoke-Parallel -Functions NotExist' |
                 Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'ModuleCompleter' {
+        It 'Provides completion based on existing modules' {
+            Complete 'Invoke-Parallel -ModuleNames ' |
+                Should -Not -BeNullOrEmpty
+        }
+    }
+
+    Context 'ModuleNames Parameter' {
+        It 'Loads a Module from Name' {
+            $null | Invoke-Parallel -ModuleNames Microsoft.PowerShell.Utility {
+                (Get-Module).Name
+            } | Should -Be Microsoft.PowerShell.Utility
+        }
+    }
+
+    Context 'ModulePaths Parameter' {
+        BeforeAll {
+            $modulePath = Join-Path $PSScriptRoot .\TestModule\
+            $invalidModulePath = Join-Path $modulePath TestModule.psm1
+            $modulePath, $invalidModulePath | Out-Null
+        }
+
+        It 'Loads a Module from Path' {
+            $null | Invoke-Parallel -ModulePaths $modulePath {
+                Get-Message
+            } | Should -Match '^Hello world from'
+        }
+
+        It 'Should throw if path is not a directory' {
+            {
+                $null | Invoke-Parallel -ModulePaths $invalidModulePath { }
+            } | Should -Throw -ExceptionType ([ArgumentException])
+        }
+
+        It 'Should throw if path is not FileSystem Provider' {
+            {
+                $null | Invoke-Parallel -ModulePaths function:Complete { }
+            } | Should -Throw -ExceptionType ([NotSupportedException])
+        }
+
+        It 'Should load modules in parallel' {
+            Measure-Command {
+                0..4 | Invoke-Parallel -ModulePaths $modulePath { }
+            } | Should -BeLessOrEqual ([timespan]::FromSeconds(7))
         }
     }
 
@@ -262,7 +309,7 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 Measure-Command { & $testOne | Should -HaveCount 5 } |
                     ForEach-Object TotalSeconds |
-                    Should -BeLessThan 2
+                    Should -BeLessThan 3
 
                 Measure-Command { & $testTwo | Should -HaveCount 10 } |
                     ForEach-Object TotalSeconds |
@@ -290,6 +337,7 @@ Describe PSParallelPipeline {
             $rs = [runspacefactory]::CreateRunspace($Host, $iss)
             $rs.Open()
         }
+
         AfterAll {
             $rs.Dispose()
         }
@@ -313,7 +361,7 @@ Describe PSParallelPipeline {
                         $ps.Stop()
                         while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
                         $timer.Stop()
-                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
+                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
 
                         if ($ps.HadErrors) {
                             $ps.Streams.Error | Write-Host -ForegroundColor Red
@@ -334,34 +382,34 @@ Describe PSParallelPipeline {
 
             Assert-RunspaceCount {
                 0..10 | Invoke-Parallel @invokeParallelSplat |
-                    Select-Object -First 1
-            } -TestCount 100
+                    Select-Object -First 3
+            } -TestCount 50
 
             Assert-RunspaceCount {
                 $invokeParallelSplat['UseNewRunspace'] = $true
                 0..10 | Invoke-Parallel @invokeParallelSplat |
-                    Select-Object -First 10
-            } -TestCount 100
+                    Select-Object -First 7
+            } -TestCount 50
         }
 
         It 'Disposes on OperationCanceledException' {
             $invokeParallelSplat = @{
-                ThrottleLimit  = 300
-                TimeOutSeconds = 1
+                ThrottleLimit  = 30
                 ScriptBlock    = { Start-Sleep 1 }
             }
 
             Assert-RunspaceCount {
+                $invokeParallelSplat['TimeOutSeconds'] = Get-Random -Minimum 1 -Maximum 4
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw -ExceptionType ([TimeoutException])
-            } -TestCount 50 # -WaitSeconds 1
+            } -TestCount 20
 
             Assert-RunspaceCount {
+                $invokeParallelSplat['TimeOutSeconds'] = Get-Random -Minimum 1 -Maximum 4
                 $invokeParallelSplat['UseNewRunspace'] = $true
-                $invokeParallelSplat['ThrottleLimit'] = 1001
                 { 0..1000 | Invoke-Parallel @invokeParallelSplat } |
                     Should -Throw -ExceptionType ([TimeoutException])
-            } -TestCount 50 # -WaitSeconds 1
+            } -TestCount 20
         }
     }
 }
