@@ -358,7 +358,7 @@ Returns objects produced by the script block.
 
 - `Invoke-Parallel` uses multithreading, which may introduce overhead. For small datasets, sequential processing might be faster.
 - Ensure variables or collections passed to the parallel scope are thread-safe (e.g., use
-`[System.Collections.Concurrent.ConcurrentDictionary]` or similar), as shown in
+[`ConcurrentDictionary<TKey, TValue>`](https://learn.microsoft.com/en-us/dotnet/api/system.collections.concurrent.concurrentdictionary-2) or similar), as shown in
 [__Example #3__](#example-3-adding-to-a-thread-safe-collection-with-using) and
 [__Example #4__](#example-4-adding-to-a-thread-safe-collection-with--variables),
 to avoid race conditions.
