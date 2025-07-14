@@ -75,7 +75,8 @@ Get-Process | Invoke-Parallel { ($using:dict)[$_.Id] = $_ }
 $dict[$PID]
 ```
 
-This example uses a thread-safe dictionary to store process objects by ID, leveraging the `$using:` modifier for variable access.
+This example uses a thread-safe dictionary to store process objects by ID, leveraging the `$using:` modifier for
+variable access.
 
 ### Example 4: Adding to a thread-safe collection with `-Variables`
 
@@ -95,7 +96,8 @@ function Greet { param($s) "$s hey there!" }
 0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
 ```
 
-This example imports a local function `Greet` into the parallel scope using [`-Functions` parameter](#-functions), allowing its use within the script block.
+This example imports a local function `Greet` into the parallel scope using [`-Functions` parameter](#-functions),
+allowing its use within the script block.
 
 ### Example 6: Setting a timeout with `-TimeoutSeconds`
 
@@ -103,7 +105,8 @@ This example imports a local function `Greet` into the parallel scope using [`-F
 0..10 | Invoke-Parallel { Start-Sleep 1 } -TimeoutSeconds 3
 ```
 
-This example limits execution to 3 seconds, stopping all running script blocks and ignoring unprocessed input once the timeout is reached.
+This example limits execution to 3 seconds, stopping all running script blocks and ignoring unprocessed input once the
+timeout is reached.
 
 ### Example 7: Creating new runspaces with `-UseNewRunspace`
 
@@ -127,7 +130,8 @@ This example limits execution to 3 seconds, stopping all running script blocks a
 # 9af7c222-061d-4c89-b073-375ee925e538
 ```
 
-This example contrasts default runspace reuse with the `-UseNewRunspace` switch, showing unique runspace IDs for each invocation in the latter case.
+This example contrasts default runspace reuse with the `-UseNewRunspace` switch, showing unique runspace IDs for each
+invocation in the latter case.
 
 ### Example 8: Using the `-ModuleNames` parameter
 
@@ -145,7 +149,8 @@ $moduleDir = Join-Path $PSScriptRoot "CustomModule"
 0..10 | Invoke-Parallel { Get-CustomCmdlet } -ModulePaths $moduleDir
 ```
 
-This example imports a custom module from the specified directory using `-ModulePaths`, allowing the `Get-CustomCmdlet` function to be used in the parallel script block.
+This example imports a custom module from the specified directory using `-ModulePaths`, allowing the `Get-CustomCmdlet`
+function to be used in the parallel script block.
 
 > [!NOTE]
 >
@@ -155,11 +160,15 @@ This example imports a custom module from the specified directory using `-Module
 
 ### -Functions
 
-Specifies an array of function names from the local session to include in the runspaces' [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate). This enables their use within the parallel script block.
+Specifies an array of function names from the local session to include in the runspaces’
+[Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
+This enables their use within the parallel script block.
 
 > [!TIP]
 >
-> This parameter is the recommended way to make local functions available in the parallel scope. Alternatively, you can retrieve the function definition as a string (e.g., `$def = ${function:Greet}.ToString()`) and use `$using:` to pass it into the script block, defining it there (e.g., `${function:Greet} = $using:def`).
+> This parameter is the recommended way to make local functions available in the parallel scope.
+Alternatively, you can retrieve the function definition as a string (e.g., `$def = ${function:Greet}.ToString()`) and
+use `$using:` to pass it into the script block, defining it there (e.g., `${function:Greet} = $using:def`).
 
 ```yaml
 Type: String[]
@@ -207,7 +216,8 @@ Accept wildcard characters: False
 
 ### -ThrottleLimit
 
-Sets the maximum number of script blocks executed in parallel across multiple threads. Additional input objects wait until the number of running script blocks falls below this limit.
+Sets the maximum number of script blocks executed in parallel across multiple threads. Additional input objects wait
+until the number of running script blocks falls below this limit.
 
 > [!NOTE]
 >
@@ -227,7 +237,8 @@ Accept wildcard characters: False
 
 ### -TimeoutSeconds
 
-Specifies the maximum time (in seconds) to process all input objects. When the timeout is reached, running script blocks are terminated, and remaining input is discarded.
+Specifies the maximum time (in seconds) to process all input objects. When the timeout is reached, running script blocks
+are terminated, and remaining input is discarded.
 
 > [!NOTE]
 >
@@ -263,11 +274,13 @@ Accept wildcard characters: False
 
 ### -Variables
 
-Provides a hashtable of variables to make available in the parallel scope. Keys define the variable names within the script block.
+Provides a hashtable of variables to make available in the parallel scope. Keys define the variable names within the
+script block.
 
 > [!TIP]
 >
-> Use this parameter as an alternative to the [`$using:` scope modifier](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes?view=powershell-7.4#scope-modifiers).
+> Use this parameter as an alternative to the
+[`$using:` scope modifier](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_scopes#scope-modifiers).
 
 ```yaml
 Type: Hashtable
@@ -361,7 +374,7 @@ startup time but ensures isolation.
 
 [__ForEach-Object -Parallel__](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/foreach-object)
 
-[__Runspaces Overview__](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.runspace?view=powershellsdk-7.4.0)
+[__Runspaces Overview__](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.runspace)
 
 [__Managed threading best practices__](https://learn.microsoft.com/en-us/dotnet/standard/threading/managed-threading-best-practices)
 
