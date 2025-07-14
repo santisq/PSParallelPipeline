@@ -296,7 +296,7 @@ Accept wildcard characters: False
 
 ### -ModuleNames
 
-Specifies an array of module names to import into the runspaces'
+Specifies an array of module names to import into the runspaces’
 [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
 This allows the script block to use cmdlets and functions from the specified modules.
 
@@ -321,7 +321,7 @@ Accept wildcard characters: False
 ### -ModulePaths
 
 Specifies an array of file paths to directories containing PowerShell modules (e.g., `.psm1` or `.psd1` files) to import
-into the runspaces' [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
+into the runspaces’ [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
 This enables the script block to use cmdlets and functions from custom or local modules.
 
 > [!NOTE]
