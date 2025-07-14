@@ -362,7 +362,7 @@ Returns objects produced by the script block.
 [__Example #3__](#example-3-adding-to-a-thread-safe-collection-with-using) and
 [__Example #4__](#example-4-adding-to-a-thread-safe-collection-with--variables),
 to avoid race conditions.
-- By default, runspaces are reused from a pool to optimize resource usage. Using `-UseNewRunspace` increases memory and
+- By default, runspaces are reused from a pool to optimize resource usage. Using [`-UseNewRunspace`](#-usenewrunspace) increases memory and
 startup time but ensures isolation.
 
 ## RELATED LINKS
