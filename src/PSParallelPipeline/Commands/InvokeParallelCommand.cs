@@ -3,7 +3,6 @@ using System.Collections;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Threading;
-using PSParallelPipeline.Poly;
 
 namespace PSParallelPipeline.Commands;
 
@@ -80,12 +79,15 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             ScriptBlock.GetUsingParameters(this));
 
         _worker = new Worker(poolSettings, workerSettings, _cts.Token);
-        _worker.Run();
     }
 
     protected override void ProcessRecord()
     {
-        Dbg.Assert(_worker is not null);
+        if (_worker is null)
+        {
+            return;
+        }
+
         InputObject.ThrowIfInputObjectIsScriptBlock(this);
 
         try
@@ -103,14 +105,17 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            CancelAndWait();
+            _worker.WaitForCompletion();
             exception.WriteTimeoutError(this);
         }
     }
 
     protected override void EndProcessing()
     {
-        Dbg.Assert(_worker is not null);
+        if (_worker is null)
+        {
+            return;
+        }
 
         try
         {
@@ -129,7 +134,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         }
         catch (OperationCanceledException exception)
         {
-            CancelAndWait();
+            _worker.WaitForCompletion();
             exception.WriteTimeoutError(this);
         }
     }

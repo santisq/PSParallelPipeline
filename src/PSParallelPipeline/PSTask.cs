@@ -114,13 +114,13 @@ internal sealed class PSTask
 
     private void CompleteTask()
     {
+        _powershell.Dispose();
         if (_canceled)
         {
             _runspace?.Dispose();
             return;
         }
 
-        _powershell.Dispose();
         if (_runspace is not null)
         {
             _pool.PushRunspace(_runspace);
@@ -129,7 +129,7 @@ internal sealed class PSTask
 
     internal void Cancel()
     {
-        _powershell.Dispose();
+        _powershell.BeginStop(null, null);
         _canceled = true;
     }
 }
