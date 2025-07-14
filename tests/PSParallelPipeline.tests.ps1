@@ -207,7 +207,7 @@ Describe PSParallelPipeline {
 
         It 'Loads a Module from Path' {
             $null | Invoke-Parallel -ModulePaths $modulePath {
-                Get-HelloWorld
+                Get-Message
             } | Should -Match '^Hello world from'
         }
 

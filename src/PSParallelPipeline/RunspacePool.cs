@@ -58,14 +58,14 @@ internal sealed class RunspacePool : IDisposable
 
     internal async Task<Runspace> GetRunspaceAsync()
     {
-        await _semaphore.WaitAsync(Token).ConfigureAwait(false);
+        await _semaphore.WaitAsync(Token).NoContext();
 
         if (_pool.TryDequeue(out Runspace runspace))
         {
             return runspace;
         }
 
-        return await CreateRunspaceAsync().ConfigureAwait(false);
+        return await CreateRunspaceAsync().NoContext();
     }
 
     public void Dispose()

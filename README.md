@@ -70,7 +70,16 @@ $message = 'world!'
 # hello world!
 ```
 
-## `-Variables` and `-Functions` Parameters
+## `-ModuleNames`, `-ModulePaths`, `-Variables` and `-Functions` Parameters
+
+- [`-ModuleNames](./docs/en-US/Invoke-Parallel.md#-modulenames) and [`-ModulePaths`](./docs/en-US/Invoke-Parallel.md#-modulepaths): {complete here}
+
+Measure-Command {
+    0..4 | Invoke-Parallel {
+        Import-Module .\tests\TestModule\
+        Get-HelloWorld | Write-Host
+    }
+}
 
 - [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly to parallel runspaces.
 

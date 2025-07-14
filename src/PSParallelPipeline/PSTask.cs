@@ -57,9 +57,9 @@ internal sealed class PSTask
         try
         {
             using CancellationTokenRegistration _ = _token.Register(Cancel);
-            _runspace = await _pool.GetRunspaceAsync().ConfigureAwait(false);
+            _runspace = await _pool.GetRunspaceAsync().NoContext();
             _powershell.Runspace = _runspace;
-            await _powershell.InvokePowerShellAsync(_outputStreams.Success).ConfigureAwait(false);
+            await _powershell.InvokePowerShellAsync(_outputStreams.Success).NoContext();
         }
         catch (Exception exception)
         {
