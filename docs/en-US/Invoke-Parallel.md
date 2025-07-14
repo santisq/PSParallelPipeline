@@ -328,9 +328,7 @@ This enables the script block to use cmdlets and functions from custom or local 
 >
 > Paths must be absolute or relative to the current working directory and must point to valid directories containing
 PowerShell modules. If an invalid path (e.g., a file or non-existent directory) is provided, a terminating error is
-thrown:  
-> `"The specified path '{path}' does not exist or is not a directory. The path must be a valid directory containing one
-> or more PowerShell modules."`
+thrown.
 
 ```yaml
 Type: String[]
