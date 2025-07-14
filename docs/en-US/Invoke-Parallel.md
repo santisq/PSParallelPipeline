@@ -217,11 +217,7 @@ Accept wildcard characters: False
 ### -ThrottleLimit
 
 Sets the maximum number of script blocks executed in parallel across multiple threads. Additional input objects wait
-until the number of running script blocks falls below this limit.
-
-> [!NOTE]
->
-> The default value is `5`.
+until the number of running script blocks falls below this limit. The default value is `5`.
 
 ```yaml
 Type: Int32
