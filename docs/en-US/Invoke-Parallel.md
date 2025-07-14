@@ -358,8 +358,9 @@ Returns objects produced by the script block.
 
 - `Invoke-Parallel` uses multithreading, which may introduce overhead. For small datasets, sequential processing might be faster.
 - Ensure variables or collections passed to the parallel scope are thread-safe (e.g., use
-`[System.Collections.Concurrent.ConcurrentDictionary]` or similar), as shown in Examples
-[3](#example-3-adding-to-a-thread-safe-collection-with-using) and [4](#example-4-adding-to-a-thread-safe-collection-with--variables),
+`[System.Collections.Concurrent.ConcurrentDictionary]` or similar), as shown in
+[__Example #3__](#example-3-adding-to-a-thread-safe-collection-with-using) and
+[__Example #4__](#example-4-adding-to-a-thread-safe-collection-with--variables),
 to avoid race conditions.
 - By default, runspaces are reused from a pool to optimize resource usage. Using `-UseNewRunspace` increases memory and
 startup time but ensures isolation.
