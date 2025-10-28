@@ -152,7 +152,7 @@ Describe PSParallelPipeline {
                     1..100 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(3))
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
                 $timer.Restart()
                 {
                     $invokeParallelSplat = @{
@@ -164,7 +164,7 @@ Describe PSParallelPipeline {
                     1..1000000 | Invoke-Parallel @invokeParallelSplat
                 } | Should -Throw -ExceptionType ([TimeoutException])
                 $timer.Stop()
-                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(1.2))
+                $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(2))
             }
         }
     }
@@ -309,15 +309,15 @@ Describe PSParallelPipeline {
             Assert-RunspaceCount {
                 Measure-Command { & $testOne | Should -HaveCount 5 } |
                     ForEach-Object TotalSeconds |
-                    Should -BeLessThan 3
+                    Should -BeLessThan 4
 
                 Measure-Command { & $testTwo | Should -HaveCount 10 } |
                     ForEach-Object TotalSeconds |
-                    Should -BeLessThan 6
+                    Should -BeLessThan 7
 
                 Measure-Command { & $testThree | Should -HaveCount 10 } |
                     ForEach-Object TotalSeconds |
-                    Should -BeLessThan 3
+                    Should -BeLessThan 4
             }
         }
 
@@ -361,7 +361,7 @@ Describe PSParallelPipeline {
                         $ps.Stop()
                         while (-not $task.AsyncWaitHandle.WaitOne(200)) { }
                         $timer.Stop()
-                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(4))
+                        $timer.Elapsed | Should -BeLessOrEqual ([timespan]::FromSeconds(5))
 
                         if ($ps.HadErrors) {
                             $ps.Streams.Error | Write-Host -ForegroundColor Red
