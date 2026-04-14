@@ -83,12 +83,10 @@ task PesterTests {
 
     if (-not (dotnet tool list --global | Select-String coverlet.console -SimpleMatch)) {
         Write-Host 'Installing dotnet tool coverlet.console' -ForegroundColor Yellow
-        $arg = @(
+        dotnet @(
             'tool', 'install'
             '--global', 'coverlet.console'
-            if (-not $IsCoreCLR) { '--framework', 'net472' })
-
-        dotnet @arg
+            if (-not $IsCoreCLR) { '--version', '6.0.4' })
     }
 
     coverlet $ProjectInfo.Pester.GetTestArgs($PSVersionTable.PSVersion)
