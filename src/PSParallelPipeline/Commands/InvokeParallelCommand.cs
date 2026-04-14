@@ -95,7 +95,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
             _worker.Enqueue(InputObject);
             while (_worker.TryTake(out PSOutputData data))
             {
-                ProcessOutput(data);
+                data.WriteToPipeline(this);
             }
         }
         catch (Exception _) when (_ is PipelineStoppedException or FlowControlException)
@@ -112,17 +112,14 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     protected override void EndProcessing()
     {
-        if (_worker is null)
-        {
-            return;
-        }
+        if (_worker is null) return;
 
         try
         {
             _worker.CompleteInputAdding();
             foreach (PSOutputData data in _worker.GetConsumingEnumerable())
             {
-                ProcessOutput(data);
+                data.WriteToPipeline(this);
             }
 
             _worker.WaitForCompletion();
@@ -136,43 +133,6 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
         {
             _worker.WaitForCompletion();
             exception.WriteTimeoutError(this);
-        }
-    }
-
-    private void ProcessOutput(PSOutputData data)
-    {
-        switch (data.Type)
-        {
-            case OutputType.Success:
-                WriteObject(data.Output);
-                break;
-
-            case OutputType.Error:
-                WriteError((ErrorRecord)data.Output);
-                break;
-
-            case OutputType.Debug:
-                DebugRecord debug = (DebugRecord)data.Output;
-                WriteDebug(debug.Message);
-                break;
-
-            case OutputType.Information:
-                WriteInformation((InformationRecord)data.Output);
-                break;
-
-            case OutputType.Progress:
-                WriteProgress((ProgressRecord)data.Output);
-                break;
-
-            case OutputType.Verbose:
-                VerboseRecord verbose = (VerboseRecord)data.Output;
-                WriteVerbose(verbose.Message);
-                break;
-
-            case OutputType.Warning:
-                WarningRecord warning = (WarningRecord)data.Output;
-                WriteWarning(warning.Message);
-                break;
         }
     }
 

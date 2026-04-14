@@ -18,7 +18,7 @@ internal static class ExceptionHelper
             cmdlet));
 
     internal static PSOutputData CreateProcessingTaskError(this Exception exception, object context) =>
-        PSOutputData.WriteError(new ErrorRecord(
+        PSOutputData.CreateError(new ErrorRecord(
             exception, "ProcessingTask", ErrorCategory.NotSpecified, context));
 
     internal static void ThrowFunctionNotFoundError(

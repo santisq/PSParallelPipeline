@@ -63,7 +63,7 @@ internal sealed class PSTask
         }
         catch (Exception exception)
         {
-            _outputStreams.AddOutput(exception.CreateProcessingTaskError(this));
+            _outputStreams.AddError(exception.CreateProcessingTaskError(this));
         }
         finally
         {

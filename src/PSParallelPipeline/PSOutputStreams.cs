@@ -25,37 +25,57 @@ internal sealed class PSOutputStreams : IDisposable
     internal PSOutputStreams(BlockingCollection<PSOutputData> output)
     {
         Output = output;
-        SetHandlers();
+        RegisterHandlers();
     }
 
-    internal void AddOutput(PSOutputData data) => Output.Add(data);
+    private void AddOutput(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateObject(args.ItemAdded));
 
-    private void SetHandlers()
+    internal void AddError(PSOutputData outputData) => Output.Add(outputData);
+
+    private void AddError(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateError(args.ItemAdded));
+
+    private void AddDebug(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateDebug(args.ItemAdded));
+
+    private void AddInformation(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateInformation(args.ItemAdded));
+
+    private void AddProgress(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateProgress(args.ItemAdded));
+
+    private void AddVerbose(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateVerbose(args.ItemAdded));
+
+    private void AddWarning(object sender, DataAddingEventArgs args)
+        => Output.Add(PSOutputData.CreateWarning(args.ItemAdded));
+
+    private void RegisterHandlers()
     {
-        Success.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteObject(e.ItemAdded));
+        Success.DataAdding += AddOutput;
+        Error.DataAdding += AddError;
+        Debug.DataAdding += AddDebug;
+        Information.DataAdding += AddInformation;
+        Progress.DataAdding += AddProgress;
+        Verbose.DataAdding += AddVerbose;
+        Warning.DataAdding += AddWarning;
+    }
 
-        Error.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteError(e.ItemAdded));
-
-        Debug.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteDebug(e.ItemAdded));
-
-        Information.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteInformation(e.ItemAdded));
-
-        Progress.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteProgress(e.ItemAdded));
-
-        Verbose.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteVerbose(e.ItemAdded));
-
-        Warning.DataAdding += (s, e) =>
-            AddOutput(PSOutputData.WriteWarning(e.ItemAdded));
+    private void UnregisterHandlers()
+    {
+        Success.DataAdding -= AddOutput;
+        Error.DataAdding -= AddError;
+        Debug.DataAdding -= AddDebug;
+        Information.DataAdding -= AddInformation;
+        Progress.DataAdding -= AddProgress;
+        Verbose.DataAdding -= AddVerbose;
+        Warning.DataAdding -= AddWarning;
     }
 
     public void Dispose()
     {
+        UnregisterHandlers();
         Success.Dispose();
         Error.Dispose();
         Debug.Dispose();
