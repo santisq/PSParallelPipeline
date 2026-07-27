@@ -7,7 +7,7 @@ namespace PSParallelPipeline;
 
 internal static class ExceptionHelper
 {
-    private const string NotSupported =
+    private const string ScriptBlockNotSupported =
         "Passed-in script block variables are not supported, and can result in undefined behavior.";
 
     internal static void WriteTimeoutError(this Exception exception, PSCmdlet cmdlet) =>
@@ -22,37 +22,24 @@ internal static class ExceptionHelper
             exception, "ProcessingTask", ErrorCategory.NotSpecified, context));
 
     internal static void ThrowFunctionNotFoundError(
-        this CommandNotFoundException exception,
-        Cmdlet cmdlet,
-        string function) =>
-        cmdlet.ThrowTerminatingError(new ErrorRecord(
-            exception, "FunctionNotFound", ErrorCategory.ObjectNotFound, function));
+        this Cmdlet cmdlet,
+        string function)
+    {
+        Exception ex = new CommandNotFoundException(
+            $"Could not find any function matching the name or pattern '{function}'.");
+        ErrorRecord error = new(ex, "FunctionNotFound", ErrorCategory.ObjectNotFound, function);
+        cmdlet.ThrowTerminatingError(error);
+    }
 
     private static bool ValueIsNotScriptBlock(object? value) =>
         value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };
 
-    internal static CommandInfo ThrowIfFunctionNotFoundError(
-        this CommandInfo? command,
-        string function)
-    {
-        if (command is not null)
-        {
-            return command;
-        }
-
-        throw new CommandNotFoundException(
-            $"The function with name '{function}' could not be found.");
-    }
-
     internal static void ThrowIfVariableIsScriptBlock(this PSCmdlet cmdlet, object? value)
     {
-        if (ValueIsNotScriptBlock(value))
-        {
-            return;
-        }
+        if (ValueIsNotScriptBlock(value)) return;
 
         cmdlet.ThrowTerminatingError(new ErrorRecord(
-            new PSArgumentException(NotSupported),
+            new PSArgumentException(ScriptBlockNotSupported),
             "PassedInVariableCannotBeScriptBlock",
             ErrorCategory.InvalidType,
             value));
@@ -60,16 +47,13 @@ internal static class ExceptionHelper
 
     internal static void ThrowIfInputObjectIsScriptBlock(this object? value, PSCmdlet cmdlet)
     {
-        if (ValueIsNotScriptBlock(value))
-        {
-            return;
-        }
+        if (ValueIsNotScriptBlock(value)) return;
 
         cmdlet.ThrowTerminatingError(new ErrorRecord(
             new PSArgumentException(
                 string.Concat(
                     "Piped input object cannot be a script block. ",
-                    NotSupported)),
+                    ScriptBlockNotSupported)),
                 "InputObjectCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
                 value));
@@ -77,16 +61,13 @@ internal static class ExceptionHelper
 
     internal static void ThrowIfUsingValueIsScriptBlock(this PSCmdlet cmdlet, object? value)
     {
-        if (ValueIsNotScriptBlock(value))
-        {
-            return;
-        }
+        if (ValueIsNotScriptBlock(value)) return;
 
         cmdlet.ThrowTerminatingError(new ErrorRecord(
             new PSArgumentException(
                 string.Concat(
                     "A $using: variable cannot be a script block. ",
-                    NotSupported)),
+                    ScriptBlockNotSupported)),
                 "UsingVariableCannotBeScriptBlock",
                 ErrorCategory.InvalidType,
                 value));
@@ -97,10 +78,7 @@ internal static class ExceptionHelper
         string path,
         PSCmdlet cmdlet)
     {
-        if (provider.ImplementingType == typeof(FileSystemProvider))
-        {
-            return;
-        }
+        if (provider.ImplementingType == typeof(FileSystemProvider)) return;
 
         ErrorRecord error = new(
             new NotSupportedException(
@@ -116,10 +94,7 @@ internal static class ExceptionHelper
         this string path,
         PSCmdlet cmdlet)
     {
-        if (Directory.Exists(path))
-        {
-            return;
-        }
+        if (Directory.Exists(path)) return;
 
         ErrorRecord error = new(
             new ArgumentException(

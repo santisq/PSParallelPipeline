@@ -22,22 +22,25 @@ internal static class Extensions
         {
             foreach (string function in functionsToAdd)
             {
-                try
-                {
-                    CommandInfo commandInfo = cmdlet
-                        .InvokeCommand
-                        .GetCommand(function, CommandTypes.Function)
-                        .ThrowIfFunctionNotFoundError(function);
+                IEnumerable<CommandInfo> commands = cmdlet
+                    .InvokeCommand
+                    .GetCommands(
+                        name: function,
+                        commandTypes: CommandTypes.Function,
+                        nameIsPattern: WildcardPattern.ContainsWildcardCharacters("*"));
 
+                bool addedOne = false;
+                foreach (CommandInfo command in commands)
+                {
+                    addedOne = true;
                     initialSessionState.Commands.Add(
                         new SessionStateFunctionEntry(
-                            name: function,
-                            definition: commandInfo.Definition));
+                            name: command.Name,
+                            definition: command.Definition));
                 }
-                catch (CommandNotFoundException exception)
-                {
-                    exception.ThrowFunctionNotFoundError(cmdlet, function);
-                }
+
+                if (!addedOne)
+                    cmdlet.ThrowFunctionNotFoundError(function);
             }
         }
 
@@ -46,18 +49,21 @@ internal static class Extensions
 
     internal static InitialSessionState AddVariables(
         this InitialSessionState initialSessionState,
-        Hashtable? variables,
+        IDictionary[]? variables,
         PSCmdlet cmdlet)
     {
         if (variables is not null)
         {
-            foreach (DictionaryEntry pair in variables)
+            foreach (IDictionary dict in variables)
             {
-                cmdlet.ThrowIfVariableIsScriptBlock(pair.Value);
-                initialSessionState.Variables.Add(new SessionStateVariableEntry(
-                    name: LanguagePrimitives.ConvertTo<string>(pair.Key),
-                    value: pair.Value,
-                    description: null));
+                foreach (DictionaryEntry pair in dict)
+                {
+                    cmdlet.ThrowIfVariableIsScriptBlock(pair.Value);
+                    initialSessionState.Variables.Add(new SessionStateVariableEntry(
+                        name: LanguagePrimitives.ConvertTo<string>(pair.Key),
+                        value: pair.Value,
+                        description: null));
+                }
             }
         }
 
