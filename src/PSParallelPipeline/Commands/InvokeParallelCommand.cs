@@ -33,12 +33,15 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     [Parameter]
     [ValidateNotNullOrEmpty]
+    [VariableTransformation]
+    [SupportsWildcards]
     [Alias("vars")]
-    public Hashtable? Variables { get; set; }
+    public IDictionary[]? Variables { get; set; }
 
     [Parameter]
     [ValidateNotNullOrEmpty]
     [ArgumentCompleter(typeof(CommandCompleter))]
+    [SupportsWildcards]
     [Alias("funcs")]
     public string[]? Functions { get; set; }
 
@@ -83,11 +86,7 @@ public sealed class InvokeParallelCommand : PSCmdlet, IDisposable
 
     protected override void ProcessRecord()
     {
-        if (_worker is null)
-        {
-            return;
-        }
-
+        if (_worker is null) return;
         InputObject.ThrowIfInputObjectIsScriptBlock(this);
 
         try

@@ -19,7 +19,7 @@ Invoke-Parallel
     [-InputObject <Object>]
     [-ThrottleLimit <Int32>]
     [-TimeoutSeconds <Int32>]
-    [-Variables <Hashtable>]
+    [-Variables <IDictionary[]>]
     [-Functions <String[]>]
     [-ModuleNames <String[]>]
     [-ModulePaths <String[]>]
@@ -67,7 +67,29 @@ This example demonstrates the [`-Variables` parameter](#-variables), which passe
 the parallel scope using a hashtable. The key `message` in the hashtable defines the variable name available within the
 script block, serving as an alternative to the `$using:` scope modifier.
 
-### Example 3: Adding to a thread-safe collection with `$using:`
+### Example 3: Import variables using wildcards
+
+```powershell
+$appUser = 'John Doe'
+$appRole = 'Admin'
+
+0..5 | Invoke-Parallel { "Processing $_ for $appUser ($appRole)" } -Variables app*
+```
+
+This example uses wildcards with `-Variables` to dynamically import all caller variables starting with `app` (in this case `$appUser` and `$appRole`) into the parallel scope.
+
+### Example 4: Passing multiple dictionaries to `-Variables`
+
+```powershell
+$dict1 = @{ Server = 'localhost' }
+$dict2 = @{ Port = 8080 }
+
+0..5 | Invoke-Parallel { "Connecting to $Server:$Port" } -Variables $dict1, $dict2
+```
+
+This example demonstrates passing an array of dictionaries to `-Variables`. Key/value pairs from both dictionaries are merged into the parallel scope.
+
+### Example 5: Adding to a thread-safe collection with `$using:`
 
 ```powershell
 $dict = [System.Collections.Concurrent.ConcurrentDictionary[int, object]]::new()
@@ -78,7 +100,7 @@ $dict[$PID]
 This example uses a thread-safe dictionary to store process objects by ID, leveraging the `$using:` modifier for
 variable access.
 
-### Example 4: Adding to a thread-safe collection with `-Variables`
+### Example 6: Adding to a thread-safe collection with `-Variables`
 
 ```powershell
 $dict = [System.Collections.Concurrent.ConcurrentDictionary[int, object]]::new()
@@ -88,18 +110,18 @@ $dict[$PID]
 
 Similar to Example 3, this demonstrates the same functionality using `-Variables` instead of `$using:`.
 
-### Example 5: Using the `-Functions` parameter
+### Example 7: Using the `-Functions` parameter with wildcards
 
 ```powershell
-function Greet { param($s) "$s hey there!" }
+function Get-Greeting { param($s) "Hello $s" }
+function Get-Farewell { param($s) "Goodbye $s" }
 
-0..10 | Invoke-Parallel { Greet $_ } -Functions Greet
+0..5 | Invoke-Parallel { Get-Greeting $_; Get-Farewell $_ } -Functions Get-*
 ```
 
-This example imports a local function `Greet` into the parallel scope using [`-Functions` parameter](#-functions),
-allowing its use within the script block.
+This example imports all functions matching the wildcard pattern `Get-*` from the local session into the parallel scope using the [`-Functions` parameter](#-functions).
 
-### Example 6: Setting a timeout with `-TimeoutSeconds`
+### Example 8: Setting a timeout with `-TimeoutSeconds`
 
 ```powershell
 0..10 | Invoke-Parallel { Start-Sleep 1 } -TimeoutSeconds 3
@@ -108,7 +130,7 @@ allowing its use within the script block.
 This example limits execution to 3 seconds, stopping all running script blocks and ignoring unprocessed input once the
 timeout is reached.
 
-### Example 7: Creating new runspaces with `-UseNewRunspace`
+### Example 9: Creating new runspaces with `-UseNewRunspace`
 
 ```powershell
 0..3 | Invoke-Parallel { [runspace]::DefaultRunspace.InstanceId } -ThrottleLimit 2
@@ -133,7 +155,7 @@ timeout is reached.
 This example contrasts default runspace reuse with the `-UseNewRunspace` switch, showing unique runspace IDs for each
 invocation in the latter case.
 
-### Example 8: Using the `-ModuleNames` parameter
+### Example 10: Using the `-ModuleNames` parameter
 
 ```powershell
 Import-Csv users.csv | Invoke-Parallel { Get-ADUser $_.UserPrincipalName } -ModuleNames ActiveDirectory
@@ -142,7 +164,7 @@ Import-Csv users.csv | Invoke-Parallel { Get-ADUser $_.UserPrincipalName } -Modu
 This example imports the `ActiveDirectory` module into the parallel scope using `-ModuleNames`, enabling the
 `Get-ADUser` cmdlet within the script block.
 
-### Example 9: Using the `-ModulePaths` parameter
+### Example 11: Using the `-ModulePaths` parameter
 
 ```powershell
 $moduleDir = Join-Path $PSScriptRoot "CustomModule"
@@ -160,9 +182,13 @@ function to be used in the parallel script block.
 
 ### -Functions
 
-Specifies an array of function names from the local session to include in the runspaces’
+Specifies an array of function names or wildcard patterns from the local session to include in the runspaces’
 [Initial Session State](https://learn.microsoft.com/en-us/dotnet/api/system.management.automation.runspaces.initialsessionstate).
 This enables their use within the parallel script block.
+
+> [!NOTE]
+>
+> If a specified name or wildcard pattern fails to match any function in the caller's scope, a terminating error is thrown.
 
 > [!TIP]
 >
@@ -179,7 +205,7 @@ Required: False
 Position: Named
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### -InputObject
@@ -270,8 +296,17 @@ Accept wildcard characters: False
 
 ### -Variables
 
-Provides a hashtable of variables to make available in the parallel scope. Keys define the variable names within the
-script block.
+Provides dictionaries (`IDictionary`), variable names, or wildcard patterns to make matching caller variables available in the parallel scope.
+
+You can supply arguments in multiple forms:
+
+- __Dictionaries__: Pass one or more dictionaries (e.g., hashtables). Keys specify variable names in the parallel scope. Duplicate keys across multiple dictionaries are ignored.
+- __Variable Names or Wildcard Patterns__: Pass strings containing variable names or wildcard expressions (e.g., `*`, `foo*`, `[ab]*`). __Non-built-in__ variables in the caller scope matching the pattern will be imported automatically.
+
+> [!NOTE]
+>
+> - When resolving variables by string/wildcard pattern, variables holding a `ScriptBlock` value are silently skipped.
+> - If a string or wildcard pattern does not match any variable in the caller's scope, a terminating error is thrown.
 
 > [!TIP]
 >
@@ -287,7 +322,7 @@ Required: False
 Position: Named
 Default value: None
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### -ModuleNames
