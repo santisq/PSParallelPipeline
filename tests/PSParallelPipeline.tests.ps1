@@ -103,6 +103,10 @@ Describe PSParallelPipeline {
     }
 
     Context 'Variables Parameter' {
+        BeforeAll {
+            $foo, $bar, $baz = 1..3
+        }
+
         It 'Makes variables available in the parallel scope' {
             $items = 0..10 | Invoke-Parallel { $message -f $_ } -Variables @{
                 message = 'Hello world from {0:D2}'
@@ -110,6 +114,37 @@ Describe PSParallelPipeline {
 
             $shouldBe = 0..10 | ForEach-Object { 'Hello world from {0:D2}' -f $_ }
             $items | Should -BeExactly $shouldBe
+        }
+
+        It 'Supports input strings' {
+            $null | Invoke-Parallel { $foo, $bar, $baz } -Variables foo, bar, baz |
+                Should -BeExactly 1, 2, 3
+        }
+
+        It 'Supports wildcard strings' {
+            $null | Invoke-Parallel { $foo, $bar, $baz } -Variables foo, b* |
+                Should -BeExactly 1, 2, 3
+
+            $null | Invoke-Parallel { $foo, $bar, $baz } -Variables * |
+                Should -BeExactly 1, 2, 3
+        }
+
+        It 'Supports multiple hashtables' {
+            $null | Invoke-Parallel { $foo, $bar, $baz } -Variables foo, @{ bar = 2 }, @{ baz = 3 } |
+                Should -BeExactly 1, 2, 3
+        }
+
+        It 'Should throw if a variable could not be found' {
+            { $null | Invoke-Parallel { } -Variable xyz } |
+                Should -Throw -ExceptionType ([ParameterBindingException])
+
+            { $null | Invoke-Parallel { } -Variable xyz* } |
+                Should -Throw -ExceptionType ([ParameterBindingException])
+        }
+
+        It 'Should throw if null value' {
+            { $null | Invoke-Parallel { } -Variable foo, $null } |
+                Should -Throw -ExceptionType ([ParameterBindingException])
         }
     }
 
@@ -123,6 +158,16 @@ Describe PSParallelPipeline {
         It 'Should throw if a function could not be found' {
             { Invoke-Parallel -Functions Test-NotExist { } } |
                 Should -Throw -ExceptionType ([CommandNotFoundException])
+        }
+
+        It 'Supports wildcard strings' {
+            0..10 | Invoke-Parallel { Test-Function $_ } -Functions Test-F* |
+                Sort-Object |
+                Should -BeExactly @(0..10 | ForEach-Object { Test-Function $_ })
+
+            0..10 | Invoke-Parallel { Test-Function $_ } -Functions * |
+                Sort-Object |
+                Should -BeExactly @(0..10 | ForEach-Object { Test-Function $_ })
         }
     }
 

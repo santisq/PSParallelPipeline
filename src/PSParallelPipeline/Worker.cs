@@ -10,17 +10,15 @@ internal sealed class Worker
 {
     private readonly Task _worker;
 
+    private readonly PoolSettings _poolSettings;
+
     private readonly TaskSettings _taskSettings;
 
     private readonly BlockingCollection<object?> _input = [];
 
     private readonly BlockingCollection<PSOutputData> _output = [];
 
-    private readonly RunspacePool _pool;
-
     private readonly CancellationToken _token;
-
-    private readonly PSOutputStreams _streams;
 
     internal Worker(
         PoolSettings poolSettings,
@@ -28,9 +26,8 @@ internal sealed class Worker
         CancellationToken token)
     {
         _token = token;
+        _poolSettings = poolSettings;
         _taskSettings = taskSettings;
-        _streams = new PSOutputStreams(_output);
-        _pool = new RunspacePool(poolSettings, _streams, _token);
         _worker = Task.Run(Start, cancellationToken: _token);
     }
 
@@ -46,22 +43,24 @@ internal sealed class Worker
 
     private async Task Start()
     {
-        List<Task> tasks = new(_pool.MaxRunspaces);
+        int max = _poolSettings.MaxRunspaces;
+        using PSOutputStreams streams = new(_output);
+        using RunspacePool pool = new(_poolSettings, streams, _token);
+        List<Task> tasks = new(max);
 
         try
         {
+            Task task;
             foreach (object? input in _input.GetConsumingEnumerable(_token))
             {
-                if (tasks.Count == tasks.Capacity)
+                if (tasks.Count == max)
                 {
-                    Task task = await Task.WhenAny(tasks).NoContext();
+                    task = await Task.WhenAny(tasks).NoContext();
                     tasks.Remove(task);
                     await task.NoContext();
                 }
 
-                tasks.Add(PSTask
-                    .Create(input, _pool, _taskSettings)
-                    .InvokeAsync());
+                tasks.Add(pool.InvokePowerShellAsync(input, _taskSettings));
             }
         }
         catch (OperationCanceledException)
@@ -69,9 +68,7 @@ internal sealed class Worker
         finally
         {
             if (tasks.Count > 0)
-            {
                 await Task.WhenAll(tasks).NoContext();
-            }
 
             _output.CompleteAdding();
         }
@@ -79,9 +76,7 @@ internal sealed class Worker
 
     public void Dispose()
     {
-        _pool.Dispose();
         _input.Dispose();
-        _streams.Dispose();
         _output.Dispose();
         GC.SuppressFinalize(this);
     }

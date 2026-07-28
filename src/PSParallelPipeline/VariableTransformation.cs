@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,17 +13,20 @@ public sealed class VariableTransformation : ArgumentTransformationAttribute
     public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
     {
         if (inputData is PSObject pso) inputData = pso.BaseObject;
-        if (inputData is Hashtable) return inputData;
+        if (inputData is IDictionary) return inputData;
 
         PSVariable[] vars = [.. engineIntrinsics.InvokeProvider.ChildItem
             .Get("variable:", true)
             .Select(pso => pso.BaseObject)
             .Cast<PSVariable>()
-            .Where(var => var.Value is not ScriptBlock && !s_defaultVars.Contains(var.Name))];
+            .Where(var => var.Value.IsNotScriptBlock() && !s_defaultVars.Contains(var.Name))];
 
         Hashtable parallelVars = [];
-        foreach (object input in LanguagePrimitives.ConvertTo<object[]>(inputData))
+        foreach (object? input in LanguagePrimitives.ConvertTo<object[]>(inputData))
         {
+            if (input is null)
+                throw new ArgumentNullException();
+
             if (LanguagePrimitives.TryConvertTo(input, out Hashtable hash))
             {
                 foreach (DictionaryEntry entry in hash)
@@ -31,15 +35,20 @@ public sealed class VariableTransformation : ArgumentTransformationAttribute
                 continue;
             }
 
-            WildcardPattern pattern = WildcardPattern.Get(
-                LanguagePrimitives.ConvertTo<string>(input),
-                WildcardOptions.IgnoreCase);
-
+            bool shouldThrow = true;
+            string inputAsString = LanguagePrimitives.ConvertTo<string>(input);
             foreach (PSVariable var in vars)
             {
-                if (pattern.IsMatch(var.Name))
+                if (inputAsString.Matches(var.Name))
+                {
+                    shouldThrow = false;
                     parallelVars[var.Name] = var.Value;
+                }
             }
+
+            if (shouldThrow)
+                throw new ItemNotFoundException(
+                    $"Could not find any variable matching the name or pattern '{inputAsString}'.");
         }
 
         return parallelVars;
