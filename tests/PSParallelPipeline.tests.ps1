@@ -289,6 +289,9 @@ Describe PSParallelPipeline {
 
             $shouldBe = 0..10 | ForEach-Object { 'Hello world from {0:D2}' -f $_ }
             $items | Should -BeExactly $shouldBe
+
+            $foo = 1
+            $null | Invoke-Parallel { $using:foo; $using:foo } | Should -BeExactly 1, 1
         }
 
         It 'Allows indexing on $using: passed-in variables' {

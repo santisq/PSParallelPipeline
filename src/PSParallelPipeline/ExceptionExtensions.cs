@@ -10,14 +10,22 @@ internal static class ExceptionExtensions
     private const string ScriptBlockNotSupported =
         "Passed-in script block variables are not supported, and can result in undefined behavior.";
 
+    private static readonly PSArgumentException PassedInVariableCannotBeScriptBlock = new(ScriptBlockNotSupported);
+
+    private static readonly PSArgumentException UsingVariableCannotBeScriptBlock = new(
+        $"A $using: variable cannot be a script block. {ScriptBlockNotSupported}");
+
+    private static readonly PSArgumentException InputObjectCannotBeScriptBlock = new(
+        $"Piped input object cannot be a script block. {ScriptBlockNotSupported}");
+
     extension(Exception exception)
     {
         internal void WriteTimeoutError(PSCmdlet cmdlet) =>
-        cmdlet.WriteError(new ErrorRecord(
-            new TimeoutException("Timeout has been reached.", exception),
-            "TimeOutReached",
-            ErrorCategory.OperationTimeout,
-            cmdlet));
+            cmdlet.WriteError(new ErrorRecord(
+                new TimeoutException("Timeout has been reached.", exception),
+                "TimeOutReached",
+                ErrorCategory.OperationTimeout,
+                cmdlet));
 
         internal PSOutputData CreateProcessingTaskError() =>
             PSOutputData.CreateError(new ErrorRecord(
@@ -27,20 +35,18 @@ internal static class ExceptionExtensions
     extension(object? value)
     {
         internal bool IsNotScriptBlock() =>
-        value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };
+            value is not ScriptBlock and not PSObject { BaseObject: ScriptBlock };
 
         internal void ThrowIfInputObjectIsScriptBlock(PSCmdlet cmdlet)
         {
             if (value.IsNotScriptBlock()) return;
 
-            cmdlet.ThrowTerminatingError(new ErrorRecord(
-                new PSArgumentException(
-                    string.Concat(
-                        "Piped input object cannot be a script block. ",
-                        ScriptBlockNotSupported)),
-                    "InputObjectCannotBeScriptBlock",
-                    ErrorCategory.InvalidType,
-                    value));
+            ErrorRecord error = new(
+                InputObjectCannotBeScriptBlock,
+                nameof(InputObjectCannotBeScriptBlock),
+                ErrorCategory.InvalidType, value);
+
+            cmdlet.ThrowTerminatingError(error);
         }
     }
 
@@ -50,25 +56,24 @@ internal static class ExceptionExtensions
         {
             if (value.IsNotScriptBlock()) return;
 
-            cmdlet.ThrowTerminatingError(new ErrorRecord(
-                new PSArgumentException(ScriptBlockNotSupported),
-                "PassedInVariableCannotBeScriptBlock",
-                ErrorCategory.InvalidType,
-                value));
+            ErrorRecord error = new(
+                PassedInVariableCannotBeScriptBlock,
+                nameof(PassedInVariableCannotBeScriptBlock),
+                ErrorCategory.InvalidType, value);
+
+            cmdlet.ThrowTerminatingError(error);
         }
 
         internal void ThrowIfUsingValueIsScriptBlock(object? value)
         {
             if (value.IsNotScriptBlock()) return;
 
-            cmdlet.ThrowTerminatingError(new ErrorRecord(
-                new PSArgumentException(
-                    string.Concat(
-                        "A $using: variable cannot be a script block. ",
-                        ScriptBlockNotSupported)),
-                    "UsingVariableCannotBeScriptBlock",
-                    ErrorCategory.InvalidType,
-                    value));
+            ErrorRecord error = new(
+                UsingVariableCannotBeScriptBlock,
+                nameof(UsingVariableCannotBeScriptBlock),
+                ErrorCategory.InvalidType, value);
+
+            cmdlet.ThrowTerminatingError(error);
         }
 
         internal void ThrowFunctionNotFoundError(string function)
