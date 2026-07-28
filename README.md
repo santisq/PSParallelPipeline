@@ -72,19 +72,24 @@ $message = 'world!'
 
 ## `-Variables`, `-Functions`, `-ModuleNames`, and `-ModulePaths` Parameters
 
-- [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly to parallel runspaces.
+- [`-Variables` Parameter](./docs/en-US/Invoke-Parallel.md#-variables): Pass variables directly using hashtables, multiple dictionaries, or wildcard patterns to automatically match caller variables.
 
     ```powershell
+    # Using a hashtable or dictionary
     'hello ' | Invoke-Parallel { $_ + $msg } -Variables @{ msg = 'world!' }
-    # hello world!
+
+    # Using wildcards to import matching caller variables
+    $appUser = 'John Doe'
+    $appRole = 'Admin'
+    0..5 | Invoke-Parallel { "Processing $_ $appUser ($appRole)" } -Variables 'app*'
     ```
 
-- [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions): Use local functions in parallel scopes without redefining them.
+- [`-Functions` Parameter](./docs/en-US/Invoke-Parallel.md#-functions): Use local functions in parallel scopes by name or wildcard pattern without redefining them.
 
     ```powershell
-    function Get-Message {param($MyParam) $MyParam + 'world!' }
-    'hello ' | Invoke-Parallel { Get-Message $_ } -Functions Get-Message
-    # hello world!
+    function Get-Greeting { param($s) "Hello $s" }
+    function Get-Farewell { param($s) "Goodbye $s" }
+    0..5 | Invoke-Parallel { Get-Greeting $_; Get-Farewell$_ } -Functions Get-*
     ```
 
 - [`-ModuleNames` Parameter](./docs/en-US/Invoke-Parallel.md#-modulenames): Import system-installed modules into parallel runspaces by name, using modules discoverable via `$env:PSModulePath`.
