@@ -134,6 +134,12 @@ Describe PSParallelPipeline {
                 Should -BeExactly 1, 2, 3
         }
 
+        It 'Strips PSObject wrapper' {
+            $vars = Write-Output foo, bar, baz
+            $null | Invoke-Parallel { $foo, $bar, $baz } -Variables $vars |
+                Should -BeExactly 1, 2, 3
+        }
+
         It 'Should throw if a variable could not be found' {
             { $null | Invoke-Parallel { } -Variable xyz } |
                 Should -Throw -ExceptionType ([ParameterBindingException])
@@ -287,8 +293,8 @@ Describe PSParallelPipeline {
 
         It 'Allows indexing on $using: passed-in variables' {
             $arr = 0..10; $hash = @{ foo = 'bar' }
-            1 | Invoke-Parallel { $using:arr[-1] } | Should -BeExactly 10
-            1 | Invoke-Parallel { $using:hash['FOO'] } | Should -BeExactly 'bar'
+            1 | Invoke-Parallel { $using:arr[0]; $using:arr[-1] } | Should -BeExactly 0, 10
+            1 | Invoke-Parallel { $using:hash['Foo']; $using:hash['FOO'] } | Should -BeExactly bar, bar
         }
 
         It 'Allows member access on $using: passed-in variables' {

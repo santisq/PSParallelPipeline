@@ -78,14 +78,6 @@ internal static class ExceptionExtensions
             ErrorRecord error = new(ex, "FunctionNotFound", ErrorCategory.ObjectNotFound, function);
             cmdlet.ThrowTerminatingError(error);
         }
-
-        internal void ThrowVariableNotFoundError(string variable)
-        {
-            Exception ex = new ItemNotFoundException(
-                $"Could not find any variable matching the name or pattern '{variable}'.");
-            ErrorRecord error = new(ex, "VariableNotFound", ErrorCategory.ObjectNotFound, variable);
-            cmdlet.ThrowTerminatingError(error);
-        }
     }
 
     extension(ProviderInfo provider)
