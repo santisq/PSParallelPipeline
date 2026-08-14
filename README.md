@@ -89,7 +89,7 @@ $message = 'world!'
     ```powershell
     function Get-Greeting { param($s) "Hello $s" }
     function Get-Farewell { param($s) "Goodbye $s" }
-    0..5 | Invoke-Parallel { Get-Greeting $_; Get-Farewell$_ } -Functions Get-*
+    0..5 | Invoke-Parallel { Get-Greeting $_; Get-Farewell $_ } -Functions Get-*
     ```
 
 - [`-ModuleNames` Parameter](./docs/en-US/Invoke-Parallel.md#-modulenames): Import system-installed modules into parallel runspaces by name, using modules discoverable via `$env:PSModulePath`.
